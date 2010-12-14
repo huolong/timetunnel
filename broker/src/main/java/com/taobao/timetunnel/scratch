@@ -1,0 +1,65 @@
+/clients
+  /log0-log
+  	/1f264fe0 {type:pub, timeout:10}
+  /log1-log
+  	/1f264fe4 {type:pub, timeout:10}
+  /log2
+  	/1f264fe6 {type:pub, timeout:10}
+  /log3
+		/1f264f50 {type:pub, timeout:10}
+  /ad0
+  	/90cbcba7 {type:sub, timeout:10, subscriber:dw-click, recvwinsize:100 }
+  	/1f2f4fe8 {type:sub, timeout:10, subscriber:dw-p4p, recvwinsize:100 }
+
+/clients/log0-log/1f264fe0
+
+/categories
+  /click {timetolive:60} 
+    /subscribers 
+      /dw-click                         /* [username]-[topic] */ 
+      /ad-click
+  /p4p {timetolive:60}
+    /subscribers 
+      /dw-p4p 
+      /lz-p4p 
+
+
+/topics
+	/group1 
+
+
+/brokers
+	/group1 
+  		/b00000001 {host:localhost, external:9999, internal:9998} (e)
+  		/b00000002 {host:localhost, external:9999, internal:9998} (e)
+  		/b00000003 {host:localhost, external:9999, internal:9998} (e)
+  		/b00000004 {host:localhost, external:9999, internal:9998} (e)
+  	/group1
+  		/b00000001 {host:localhost, external:9999, internal:9998} (e)
+  		
+/runtime
+  /b00000001 {mem:2.5/4, disk:10/250, load:0.4}
+    /tunnels
+      /click {discard:0}
+        /post
+          /auction01:33256 {request:9843, post:9843, bytes:1224847275}
+        /get
+          /kgb01:44295 {request:87, get:8631, bytes:81776573}
+        /dump {to:b0000002, progress:3/10}
+    /reliables
+      /log 
+        /copy
+          /logserver01:9938 {request:99836, copy:99836,bytes:1111927345}
+        /dump
+        /trim
+          /logserver01:9938 {request:99, trim:208}
+
+
+
+tunnel(category, timeout) {
+	
+	serve {
+		case post(session, message) : feed(session).append(message); feed(session).notify(watchers)
+		case ackAndGet(session)			: watcher(session).ackAndGet(); watcher(session).fetch(feeds)
+	}
+}
