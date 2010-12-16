@@ -1,0 +1,10 @@
+/clients
+/clients/pub0 : {"type":"pub", "timeout":10, "subscriber":"", "receiveWindowSize":-1}
+/clients/pub1 : {"type":"pub", "timeout":10, "subscriber":"", "receiveWindowSize":-1}
+/clients/pub2 : {"type":"pub", "timeout":10, "subscriber":"", "receiveWindowSize":-1}
+/clients/sub0 : {"type":"sub", "timeout":10, "subscriber":"dw", "receiveWindowSize":3}
+/clients/sub1 : {"type":"sub", "timeout":10, "subscriber":"dw", "receiveWindowSize":3}
+/categories
+/categories/chat
+/categories/chat/subscribers
+/categories/chat/subscribers/dw
