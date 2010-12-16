@@ -9,9 +9,8 @@ public class ConstantLoadBalancer implements LoadBalancer {
 		String broker = routerMap.getClientConstStatus(clientId);
 		if(broker == null){
 			broker = routerMap.getCurrent(topic);
-			routerMap.setClientStatus(clientId, broker);
+			routerMap.setClientConstStatus(clientId, broker);
 		}
-		return broker;	
-		
+		return broker;			
 	}
 }

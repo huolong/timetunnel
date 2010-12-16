@@ -9,7 +9,7 @@ import java.util.Properties;
 import com.taobao.timetunnel2.router.common.RouterConsts;
 
 public class ZooKeeperClientPool {
-	private List<AsyncZookeeperClient> zkpool;
+	private List<ZookeeperService> zkpool;
 	private int size=1;
 	private int counter=-1;
 	private static final ZooKeeperClientPool instance = new ZooKeeperClientPool();
@@ -35,14 +35,14 @@ public class ZooKeeperClientPool {
 		}
 		ZookeeperProperties zkprop = new ZookeeperProperties(prop);
 		size = zkprop.getPoolSize();
-		zkpool = new ArrayList<AsyncZookeeperClient>(size);
+		zkpool = new ArrayList<ZookeeperService>(size);
 		for(int i=0; i<size; i++){
-			AsyncZookeeperClient zookeeper = new AsyncZookeeperClient(zkprop); 
+			ZookeeperService zookeeper = new ZooKeeperExector(zkprop); 
 			zkpool.add(zookeeper);			
 		}
 	}
 	
-	public synchronized AsyncZookeeperClient getZooKeeperClient(){
+	public synchronized ZookeeperService getZooKeeperClient(){
 		if(size==1)
 			return zkpool.get(0);
 		if (++counter >= size) {
@@ -53,7 +53,7 @@ public class ZooKeeperClientPool {
 	
 	public void close(){
 		for(int i=0; i<size; i++){
-			AsyncZookeeperClient zookeeper = zkpool.get(i);	
+			ZookeeperService zookeeper = zkpool.get(i);	
 			if(zookeeper!=null){
 				zookeeper.close();
 			}

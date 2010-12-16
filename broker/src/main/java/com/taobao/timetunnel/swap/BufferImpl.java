@@ -43,8 +43,6 @@ final class BufferImpl implements Buffer {
     LOGGER.debug("{} created.", this);
   }
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BufferImpl.class);
-
   /**
    * @param segment in {@link Chunk}
    * @param maxByteBufferSize
@@ -113,15 +111,12 @@ final class BufferImpl implements Buffer {
   }
 
   synchronized void clear() {
-    if (!frozen) {
-      buffersForWrite.clear();
-      size = 0;
-    }
+    if (!frozen) buffersForWrite.clear();
     if (cache != null) {
       cache.clear();
       cache = null;
     }
-    if (frozen) segment.removeOn(size);
+    // if (frozen) segment.removeOn(size);
     LOGGER.debug("{} cleared.", this);
   }
 
@@ -156,8 +151,8 @@ final class BufferImpl implements Buffer {
 
       @Override
       public void remove() {
+        if (reduce(length) == 0) clear();
         segment.reduce(length);
-        if (position + length == size()) clear();
       }
     };
   }
@@ -166,9 +161,15 @@ final class BufferImpl implements Buffer {
     return new WeakReference<ByteBuffer>(duplicate);
   }
 
+  private synchronized int reduce(final int length) {
+    return (size -= length + DATA_SIZE_LENGTH);
+  }
+
   public static Buffer buffer(final Segment segment, final int maxByteBufferSize) {
     return new BufferImpl(segment, maxByteBufferSize);
   }
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(BufferImpl.class);
 
   static final int DEFAULT_CAPACITY = 16;
 

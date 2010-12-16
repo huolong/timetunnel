@@ -44,6 +44,7 @@ public class ChunkTest {
     }
 
     assertThat(chunk.hasRemainingFor(Bytes.toBuffer(16)), is(false));
+    chunk.close();
     path.delete();
   }
 
@@ -109,6 +110,8 @@ public class ChunkTest {
       }
     };
     Race.run(freezing, removing);
+    chunk.close();
+    path.delete();
   }
 
   private void assertPointedBuffer(final List<Point<ByteBuffer>> points) {

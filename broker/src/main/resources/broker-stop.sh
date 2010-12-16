@@ -13,7 +13,7 @@ fi
 pids=`cat $pidfile`;
 for pid in $pids
 do
- kill $pid;
+ kill -15 $pid;
 done
 rm -rf $pidfile;
 exit 0;

@@ -4,10 +4,9 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
 
-import com.taobao.timetunnel2.router.common.RouterConsts;
 import com.taobao.timetunnel2.router.common.ParamsKey;
+import com.taobao.timetunnel2.router.common.RouterConsts;
 import com.taobao.timetunnel2.router.exception.ServiceException;
 import com.taobao.timetunnel2.router.loadbalance.RouterContext;
 
@@ -178,7 +177,7 @@ public abstract class ServiceEngine implements Seveice{
     
 	public static void main(String[] args) {
 		Thread.currentThread().setName("main service engine");
-		PropertyConfigurator.configure(RouterConsts.LOG_PATH);
+		//PropertyConfigurator.configure(RouterConsts.LOG_PATH);
 		
 		final Logger log = Logger.getLogger(ServiceEngine.class);
 		log.info(RouterConsts.LOG_PATH);

@@ -61,15 +61,6 @@ interface Chunk {
 
     void reduce(int length);
 
-    /**
-     * Invoke this method can remove the {@link Chunk} which current
-     * {@link Segment} belongs to , if current {@link Segment} is the last one
-     * of {@link Chunk} depends on the size.
-     * 
-     * @param size
-     */
-    void removeOn(int size);
-
     void write(ByteBuffer[] buffers, long size) throws IOException;
 
     int DATA_SIZE_LENGTH = 4;

@@ -13,8 +13,6 @@ import org.apache.zookeeper.recipes.lock.WriteLock;
 
 import com.taobao.timetunnel2.cluster.util.StringUtil;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathChildDeleter;
-import com.taobao.timetunnel2.cluster.zookeeper.operation.PathChildWatcher;
-import com.taobao.timetunnel2.cluster.zookeeper.operation.PathChildWatcher.ChildrenVisitor;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathChildrenListener;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathCreator;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathDataGetter;
@@ -32,7 +30,7 @@ public class ZooKeeperRecyclableClient {
 	private ZooKeeper zooKeeper;
 	//private Thread watchThread;
 	private Map<String, Thread> watchThreads = new HashMap<String, Thread>();
-	private Map<String, DataVisitor> vistors = new HashMap<String, DataVisitor>();
+	private Map<String, Object> vistors = new HashMap<String, Object>();
 
 	public ZooKeeperRecyclableClient(ZooKeeper zooKeeper) {
 		this.zooKeeper = zooKeeper;
@@ -87,15 +85,23 @@ public class ZooKeeperRecyclableClient {
 	}
 
 	public List<String> listPathChildren(String path) {
-		return new PathChildrenListener(zooKeeper, path).getChildren();
+		List<String> children = null;
+		try{
+			children = new PathChildrenListener(zooKeeper, path).getChildren();
+		}catch(Exception e){			
+		}		
+		return children;
 	}
 
-	public void watchPathChild(final String path, final ChildrenVisitor visitor) {
-		new Thread() {
+	public void watchPathChild(final String path, final Visitor visitor) {
+		Thread watchThread = new Thread() {
 			public void run() {
 				new PathChildWatcher(zooKeeper, path, visitor).watch();
 			}
-		}.start();
+		};
+		vistors.put(path, visitor);
+		watchThreads.put(path, watchThread);
+		watchThread.start();
 	}
 
 	public void watchPathData(final String path, final DataVisitor visitor) {
@@ -107,12 +113,17 @@ public class ZooKeeperRecyclableClient {
 		vistors.put(path, visitor);
 		watchThreads.put(path, watchThread);
 		watchThread.start();
-		/*watchThread = new Thread() {
+	}
+	
+	public void watchPathExist(final String path, final Visitor visitor) {
+		Thread watchThread = new Thread() {
 			public void run() {
-				new PathDataWatcher(zooKeeper, path, visitor).watch();
+				new PathExistWatcher(zooKeeper, path, visitor).watch();
 			}
 		};
-		watchThread.start();*/
+		vistors.put(path, visitor);
+		watchThreads.put(path, watchThread);
+		watchThread.start();
 	}
 
 	public boolean lockPath(String path, LockListener listener) {
@@ -135,11 +146,13 @@ public class ZooKeeperRecyclableClient {
 	}
 
 	public String getPathDataAsStr(String path) {
-		byte[] data = new PathDataGetter(zooKeeper, path).getData();
-		if (data == null)
-			return "";
-		else
-			return new String(data);
+		try {
+			byte[] data = new PathDataGetter(zooKeeper, path).getData();
+			if (data != null)
+				return new String(data);
+		} catch (Exception e) {
+		}
+		return null;
 	}
 
 	public boolean setPathDataAsStr(String path, String data) {
@@ -196,9 +209,10 @@ public class ZooKeeperRecyclableClient {
 					Thread watchThread = entry.getValue();
 					if (watchThread!=null){
 						watchThread.interrupt();	
-						DataVisitor visitor = vistors.get(path);
-						if (visitor!=null)
-							watchPathData(path, visitor);
+						Object visitor = vistors.get(path);
+						if (visitor!=null){
+							watchPathExist(path, (Visitor)visitor);	
+						}
 					}
 				}
 			}

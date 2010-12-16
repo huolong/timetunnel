@@ -4,7 +4,6 @@ import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -16,7 +15,6 @@ import com.taobao.timetunnel.swap.ByteBufferFreezers;
 import com.taobao.timetunnel.swap.Freezer;
 import com.taobao.util.Events;
 import com.taobao.util.MemoryMonitor;
-import com.taobao.util.SystemTime;
 
 /**
  * {@link ByteBufferMessageCompactor}
@@ -45,26 +43,18 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
   public Message<ByteBuffer> createBy(final ByteBuffer content,
                                       final Category category,
                                       final Session publisher) {
-    if (monitor.isShort() && compacting.compareAndSet(false, true)) Events.submit(compactTask);
+    if (monitor.isShort() && compacting.compareAndSet(false, true)) Events.enqueue(compactTask);
     final Message<ByteBuffer> message = FACTORY.createBy(content, category, publisher);
     queue.add(message);
     return uselessAware(message);
   }
 
-  private synchronized boolean notLoggingOverload() {
-    final long current = SystemTime.current();
-    final boolean overload = (current - last) < 1000l;
-    last = current;
-    return !overload;
-  }
-
-  private Callable<Void> removeTask(final Message<ByteBuffer> message) {
-    return new Callable<Void>() {
+  private Runnable removeTask(final Message<ByteBuffer> message) {
+    return new Runnable() {
 
       @Override
-      public Void call() throws Exception {
+      public void run() {
         queue.remove(message);
-        return null;
       }
     };
   }
@@ -78,20 +68,17 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
   private static final Logger LOGGER = LoggerFactory.getLogger(ByteBufferMessageCompactor.class);
   private final MemoryMonitor monitor;
   private final ByteBufferFreezers freezers;
-  private final Callable<Void> compactTask = new CompactTask();
+  private final Runnable compactTask = new CompactTask();
   private final AtomicBoolean compacting = new AtomicBoolean();
   private final Queue<Message<ByteBuffer>> queue = new ConcurrentLinkedQueue<Message<ByteBuffer>>();
-
-  /** last logging time */
-  private long last = SystemTime.current();
 
   /**
    * {@link CompactTask}
    */
-  private final class CompactTask implements Callable<Void> {
+  private final class CompactTask implements Runnable {
 
     @Override
-    public Void call() throws Exception {
+    public void run() {
       LOGGER.info("Start compact messages because memory is in short ({}).", monitor);
       int compacted = 0;
 
@@ -104,12 +91,13 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
 
       compacting.compareAndSet(true, false);
 
-      if (monitor.isShort() && notLoggingOverload()) {
+      if (monitor.isShort()) {
         LOGGER.warn("Compacted {} messages but memory still in short ({}), "
             + "it could be a memory leak signal.", compacted, monitor);
-      } else LOGGER.info("Compacted {} messages and {}.", compacted, monitor);
+      } else {
+        LOGGER.info("Compacted {} messages and {}.", compacted, monitor);
+      }
 
-      return null;
     }
   }
 
@@ -164,7 +152,7 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
     @Override
     public void readBy(final Session subscriber) {
       message.readBy(subscriber);
-      if (isUseless()) Events.submit(removeTask(message));
+      if (isUseless()) Events.enqueue(removeTask(message));
     }
 
     @Override

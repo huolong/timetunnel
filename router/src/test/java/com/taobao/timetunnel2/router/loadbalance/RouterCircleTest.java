@@ -11,6 +11,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.taobao.timetunnel2.router.biz.BrokerUrl;
+
 public class RouterCircleTest {
 	
 	@Before

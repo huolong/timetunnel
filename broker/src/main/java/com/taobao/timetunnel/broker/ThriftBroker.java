@@ -75,11 +75,11 @@ public abstract class ThriftBroker<T> implements Server {
   public final void start() {
     id = center.register(info(), group, watcher());
     doStart();
+    center.unregister();
   }
 
   @Override
   public final void stop() {
-    center.unregister();
     doStop();
   }
 
@@ -105,9 +105,9 @@ public abstract class ThriftBroker<T> implements Server {
     return center.reliableServiceAddress(name);
   }
 
-  protected final void reregister() {
+  protected synchronized final void reregister() {
     center.unregister();
-    id = center.register(info(), group, clusterChangedWatcher);
+    id = center.register(info(), group, watcher());
   }
 
   protected final Session session(final ByteBuffer token) {

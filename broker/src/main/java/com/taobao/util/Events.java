@@ -1,9 +1,7 @@
 package com.taobao.util;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -35,33 +33,6 @@ public final class Events {
 
   private Events() {}
 
-  /**
-   * @see ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long,
-   *      TimeUnit)
-   */
-  public static ScheduledFuture<?> scheduleAtFixedRate(final Runnable command,
-                                                       final long period,
-                                                       final TimeUnit unit) {
-    return SCHEDULER.scheduleAtFixedRate(event(command), period, period, unit);
-  }
-
-  /**
-   * @see ExecutorService#submit(Callable)
-   */
-  public static <T> Future<T> submit(final Callable<T> task) {
-    return EXECUTOR.submit(task);
-  }
-
-  private static Runnable event(final Runnable command) {
-    return new Runnable() {
-
-      @Override
-      public void run() {
-        EXECUTOR.execute(command);
-      }
-    };
-  }
-
   public static void dispose() {
     try {
       do {
@@ -79,7 +50,37 @@ public final class Events {
     }
   }
 
-  private final static ExecutorService EXECUTOR;
+  /**
+   * @see ExecutorService#execute(Runnable)
+   */
+  public static void enqueue(final Runnable task) {
+    EXECUTOR.execute(task);
+  }
 
+  // public static <T> Future<T> submit(final Callable<T> task) {
+  // return EXECUTOR.submit(task);
+  // }
+
+  /**
+   * @see ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long,
+   *      TimeUnit)
+   */
+  public static ScheduledFuture<?> scheduleAtFixedRate(final Runnable command,
+                                                       final long period,
+                                                       final TimeUnit unit) {
+    return SCHEDULER.scheduleAtFixedRate(event(command), period, period, unit);
+  }
+
+  private static Runnable event(final Runnable command) {
+    return new Runnable() {
+
+      @Override
+      public void run() {
+        EXECUTOR.execute(command);
+      }
+    };
+  }
+
+  private final static ExecutorService EXECUTOR;
   private final static ScheduledExecutorService SCHEDULER;
 }

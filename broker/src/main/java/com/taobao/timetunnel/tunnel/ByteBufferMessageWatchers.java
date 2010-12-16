@@ -89,6 +89,7 @@ final class ByteBufferMessageWatchers implements Disposable {
 
     @Override
     public synchronized void dispose() {
+      if (disposed) return;
       watchers.remove(session);
       session.remove(this);
       group.reclaim(session, reflux());

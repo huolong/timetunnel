@@ -162,7 +162,8 @@ public final class TestClient {
           }
         }, "zookeeper-server");
         thread.start();
-
+        
+        Thread.sleep(200L); // wait for server started.
         new ZookeeperNodeCreater(("localhost:" + port), (tickTime * 2)).createNodesBy(scriptFile);
 
         thread.join();

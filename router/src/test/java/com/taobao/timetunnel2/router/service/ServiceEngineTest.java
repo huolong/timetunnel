@@ -1,20 +1,13 @@
 package com.taobao.timetunnel2.router.service;
 
-import static org.junit.Assert.*;
-
-import java.io.File;
-import java.io.FileInputStream;
 import java.util.Properties;
 
-import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.taobao.timetunnel2.router.common.ParamsKey;
-import com.taobao.timetunnel2.router.common.RouterConsts;
 import com.taobao.timetunnel2.router.loadbalance.RouterContext;
-import com.taobao.timetunnel2.router.zkclient.AsyncZookeeperClient;
-import com.taobao.timetunnel2.router.zkclient.ZookeeperProperties;
 
 public class ServiceEngineTest {
 	private  ServiceEngine srv;
@@ -31,11 +24,6 @@ public class ServiceEngineTest {
 		srv = ServiceEngine.getInstance(classname);
 	}
 	
-	@After
-	public void tearDown() throws Exception {
-		srv.stop();
-	}
-	
 	@Test
 	public void testStart() {
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
@@ -48,6 +36,23 @@ public class ServiceEngineTest {
 				}
 			}
 		}));
+		new Thread(){
+			public void run() {
+				try {
+					Thread.sleep(5000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				Assert.assertTrue(srv.isStarted());
+				try {
+					srv.stop();
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			};
+		}.start();
 		try {
 			srv.start();			
 		} catch (Exception e) {

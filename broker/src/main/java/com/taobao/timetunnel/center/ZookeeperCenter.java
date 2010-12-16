@@ -13,7 +13,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.FutureTask;
 import java.util.regex.Matcher;
@@ -75,33 +74,20 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
 
   @Override
   public void onDisconnected() {
-    LOGGER.info("Broker disconnected to zookeeper server");
+    LOGGER.error("Broker disconnected to zookeeper server");
+    watcher.onLossContactWithCluster();
   }
 
   @Override
   public void onNodeChildrenChanged(final String path) {
     LOGGER.info("Node {} changed.", path);
     if (path.equals(currentGroup)) {
-      Events.submit(new Callable<Void>() {
-
-        @Override
-        public Void call() throws Exception {
-          fireOnClusterChanged();
-          return null;
-        }
-      });
+      fireOnClusterChanged();
     }
 
     final Matcher matcher = CATEGORY_PATTERN.matcher(path);
     if (matcher.matches()) {
-      Events.submit(new Callable<Void>() {
-
-        @Override
-        public Void call() throws Exception {
-          category(matcher.group(1));
-          return null;
-        }
-      });
+      category(matcher.group(1));
     }
   }
 
@@ -114,29 +100,14 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
   @Override
   public void onNodeDeleted(final String path) {
     if (path.startsWith("/clients")) {
-      LOGGER.info("{} invalid by someone.", path);
-      Events.submit(new Callable<Void>() {
-
-        @Override
-        public Void call() throws Exception {
-          sessions.invalid(path);
-          return null;
-        }
-      });
+      sessions.invalid(path);
     }
   }
 
   @Override
   public void onSessionExpired() {
     LOGGER.error("Zookeeper session expired, loss contact with cluster.");
-    Events.submit(new Callable<Void>() {
-
-      @Override
-      public Void call() throws Exception {
-        watcher.onLossContactWithCluster();
-        return null;
-      }
-    });
+    watcher.onLossContactWithCluster();
   }
 
   @Override
@@ -206,7 +177,7 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
     }
   }
 
-  private void fireOnClusterChanged() {
+  private synchronized void fireOnClusterChanged() {
     try {
       final List<String> children = connector.getChildren(currentGroup, true);
       watcher.onClusterChanged(children);
@@ -425,9 +396,9 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
 
     public void checkTimeoutAndExpired() {
       LOGGER.debug("Start check session timeout or expired.");
-      try {
-        for (final FutureTask<InnerSession> task : map.values()) {
-          final InnerSession session = task.get();
+      for (final ByteBuffer token : map.keySet()) {
+        try {
+          final InnerSession session = map.get(token).get();
           if (session.isInvalid()) {
             remove(session.id());
             continue;
@@ -437,9 +408,11 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
           final long current = SystemTime.current();
           if (isTimeout(session, timeout, current) || shouldRebalance(session, current))
             session.invalid(true);
+
+        } catch (final Exception e) {
+          LOGGER.error("Missing token " + Bytes.toString(token), e);
+          map.remove(token);
         }
-      } catch (final Exception e) {
-        throw new RuntimeException(e);
       }
     }
 

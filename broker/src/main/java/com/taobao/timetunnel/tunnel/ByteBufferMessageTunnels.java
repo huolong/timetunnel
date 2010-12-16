@@ -3,7 +3,6 @@ package com.taobao.timetunnel.tunnel;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -20,7 +19,7 @@ import com.taobao.timetunnel.message.Message;
 import com.taobao.timetunnel.message.MessageFactory;
 import com.taobao.timetunnel.session.Attribute;
 import com.taobao.timetunnel.session.Session;
-import com.taobao.timetunnel.tunnel.MoveSynchronizer.Tracker;
+import com.taobao.timetunnel.tunnel.Coordinator.Track;
 import com.taobao.util.Events;
 import com.taobao.util.Repository;
 import com.taobao.util.Repository.Factory;
@@ -129,16 +128,15 @@ public class ByteBufferMessageTunnels implements Disposable, Dumpable<ByteBuffer
 
     @Override
     public void onHasUselessMessages(final Watcher<ByteBuffer> watcher) {
-      if (trimming.compareAndSet(false, true)) Events.submit(new Callable<Void>() {
+      if (trimming.compareAndSet(false, true)) Events.enqueue(new Runnable() {
 
         @Override
-        public Void call() throws Exception {
+        public void run() {
           LOGGER.debug("Start to trim {}.", feed);
           final int trim = feed.trim();
           LOGGER.debug("Trimed {} messages of {}.", trim, feed);
           listener.onTrim(category, watcher.session(), trim);
           trimming.compareAndSet(true, false);
-          return null;
         }
       });
     }
@@ -198,7 +196,7 @@ public class ByteBufferMessageTunnels implements Disposable, Dumpable<ByteBuffer
       public WatcherGroup(final String key) {
         this.key = key;
         reflux = new ConcurrentLinkedQueue<Message<ByteBuffer>>();
-        moveSynchronizer = MoveSynchronizers.moveSynchronizer(syncPoint);
+        coordinator = Coordinators.coordinator(syncPoint);
       }
 
       public Cursor<Message<ByteBuffer>> cursorOf(final Session session) {
@@ -224,7 +222,7 @@ public class ByteBufferMessageTunnels implements Disposable, Dumpable<ByteBuffer
       private final String key;
       private final Queue<Message<ByteBuffer>> reflux;
       private final Cursors cursors = new Cursors();
-      private final MoveSynchronizer<Session> moveSynchronizer;
+      private final Coordinator coordinator;
 
       /**
        * {@link Cursors}
@@ -248,10 +246,10 @@ public class ByteBufferMessageTunnels implements Disposable, Dumpable<ByteBuffer
         }
 
         void remove(final Session session) {
-          FutureTask<InnerCursor> task = map.remove(session);
+          final FutureTask<InnerCursor> task = map.remove(session);
           try {
-            if (task != null) task.get().tracker.discard();
-          } catch (Exception e) {
+            if (task != null) task.get().track.destory();
+          } catch (final Exception e) {
             throw new RuntimeException(e);
           }
         }
@@ -262,28 +260,26 @@ public class ByteBufferMessageTunnels implements Disposable, Dumpable<ByteBuffer
        * {@link InnerCursor}
        */
       private final class InnerCursor implements Cursor<Message<ByteBuffer>> {
-        private final Tracker tracker;
-
         public InnerCursor(final Session session) {
-          this.session = session;
-          tracker = moveSynchronizer.tracker(session);
+          track = coordinator.track(session.id());
         }
 
         @Override
-        public synchronized Message<ByteBuffer> next() {
-          try {
-            tracker.next();
-          } catch (InterruptedException e) {
-            LOGGER.error("Interrupt tracker of {}", session);
-            Thread.currentThread().interrupt();
-          }
-          Message<ByteBuffer> message = reflux.poll();
+        public Message<ByteBuffer> next() {
+          Message<ByteBuffer> message = null;
+          if (awaitForBalance()) return message;
+          message = reflux.poll();
           if (message == null) message = feed.cursorOf(key).next();
           if (message == null) return message;
           return message;
         }
 
-        private final Session session;
+        private boolean awaitForBalance() {
+          return !track.move();
+        }
+
+        private final Track track;
+
       }
 
     }

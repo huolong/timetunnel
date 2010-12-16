@@ -43,11 +43,11 @@ public class RouterContextTest {
 		String session = null;
 		try {
 			Map<String, String> prop = new HashMap<String, String>();
-			prop.put(Constants.LOCAL_HOST, "host1:8080");
+			prop.put(Constants.LOCAL_HOST, "host2:8080");
 			prop.put(Constants.TIMEOUT, "80");
 			prop.put(Constants.TYPE, "PUB");			
 			session = context.authenticate("tt", "2", "acookie", prop);
-			assertEquals(32, session.substring(session.lastIndexOf("/")+1,session.length()).length());
+			assertEquals(33, session.substring(session.lastIndexOf("/")+1,session.length()).length());
 			session = context.authenticate("tt", "3", "acookie", prop);
 			assertEquals(null, session);
 		} catch (ServiceException e) {

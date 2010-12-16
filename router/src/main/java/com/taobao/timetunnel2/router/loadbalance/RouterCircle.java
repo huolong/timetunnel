@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.taobao.timetunnel2.router.biz.BrokerUrl;
+
 public class RouterCircle {
 	private Map<String, RouterNode> circle;	
 	private String topic;	

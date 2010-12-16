@@ -2,14 +2,10 @@ package com.taobao.timetunnel2.router.common;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
-import com.taobao.timetunnel2.router.loadbalance.BrokerUrl;
 
 public class Util {
 	private static final Logger log = Logger.getLogger(Util.class);
@@ -58,7 +54,19 @@ public class Util {
 		return (char) ('a' + nibble - 10);
 	}
 	
-    public static int getIntParam(String param, String paramvalue, int defaultvalue, int min, int max) throws ValidationException{    	
+	public static int getIntParam(String param, String paramvalue) throws ValidationException{    	
+    	return getIntParam(param, paramvalue, 0, 0, Integer.MAX_VALUE, true);
+    }
+	
+	public static int getIntParam(String param, String paramvalue, int min, int max) throws ValidationException{    	
+    	return getIntParam(param, paramvalue, 0, min, max, true);
+    }
+	
+	public static int getIntParam(String param, String paramvalue, int defaultvalue, int min, int max) throws ValidationException{    	
+    	return getIntParam(param, paramvalue, defaultvalue, min, max, false);
+    }
+	
+    public static int getIntParam(String param, String paramvalue, int defaultvalue, int min, int max, boolean nullCheck) throws ValidationException{    	
     	if (paramvalue!=null){
     		try{
     			Integer value = Integer.valueOf(paramvalue);
@@ -70,8 +78,11 @@ public class Util {
     			log.warn(String.format("Convert string to numeric types is failed[%s],so use the default value[%s] of param[%s].",paramvalue, defaultvalue, param));
     			return defaultvalue;
     		}
-    	}else
+    	}else{
+    		if (nullCheck)
+    			throw new ValidationException(String.format("The param[%s] needs a required value.", param));
     		return defaultvalue;
+    	}
     }
     
     public static long getLongParam(String param, String paramvalue, long defaultvalue, long min, long max) throws ValidationException{    	
@@ -90,15 +101,17 @@ public class Util {
     		return defaultvalue;
     }
     
-    public static void main(String[] args) {
-    	TreeSet<String> set = new TreeSet<String>();
-    	Map<String, String> map = new TreeMap<String, String>();
-		//"{type:sub, timeout:10, token:90cbcba7, subscriber:dw, recvwinsize:100 }";
-    	
-		map.put("timeout", "100");
-		map.put("type", "pub");
-		System.out.println(Util.toJsonStr(map));
-    	BrokerUrl url = (BrokerUrl)Util.fromJson("{\"host\":\"localhost3\",\"external\":39905,\"internal\":49905}" , BrokerUrl.class);
-    	System.out.println(url.getExternalUrl());
-	}
+    public static String getStrParam(String param, String paramvalue) throws ValidationException{
+    	return getStrParam(param, paramvalue, null, true);
+    }
+    
+    public static String getStrParam(String param, String paramvalue, String defaultvalue, boolean nullCheck) throws ValidationException{    	
+    	if (paramvalue!=null){
+    		return paramvalue;    
+    	}else{
+    		if (nullCheck && defaultvalue==null)
+    			throw new ValidationException(String.format("The param[%s] needs a required value.", param));
+    		return defaultvalue;
+    	}
+    }
 }

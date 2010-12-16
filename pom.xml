@@ -65,6 +65,6 @@
 		<module>idl</module>
 		<module>broker</module>
 		<module>router</module>
-		<module>client</module>		
+		<module>client/java</module>		
 	</modules>
 </project>

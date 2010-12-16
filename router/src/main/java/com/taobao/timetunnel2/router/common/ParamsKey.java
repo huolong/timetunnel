@@ -17,6 +17,7 @@ public abstract class ParamsKey {
 		public final static String topic = "/categories";
 		public final static String broker = "/brokers";
 		public final static String session = "/clients";
+		public final static String status = "/clients/status";
 	}
 	
 	public static class Service{

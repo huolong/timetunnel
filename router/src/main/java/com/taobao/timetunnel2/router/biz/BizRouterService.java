@@ -30,9 +30,12 @@ public class BizRouterService implements RouterService.Iface {
 	public String getBroker(String user, String pwd, String topic,
 			String apply, Map<String, String> prop)
 			throws RouterException,	TException {
-		log.debug(String.format(
-				"One request has been received: user=%s,topic=%s,isApply=%s",
-				user, topic, apply));
+		String clientId = prop.get(Constants.LOCAL_HOST)+RouterConsts.ID_SPLIT+topic;
+		String type = prop.get(Constants.TYPE);
+		log.info(String.format(
+				"One request has been received: thread=%s,user=%s,topic=%s,isApply=%s,clientId=%s,type=%s",
+				Thread.currentThread().getId(),
+				user, topic, apply, clientId, type));		
 		LoadBalancer lb = null;
 		if(RouterConsts.LB_APPLY.equalsIgnoreCase(apply))
 			lb = routercontext.getPolicy(ParamsKey.LBPolicy.s_policy);
@@ -40,8 +43,6 @@ public class BizRouterService implements RouterService.Iface {
 			lb = routercontext.getPolicy(ParamsKey.LBPolicy.policy);
 		String sessionId = null;
 		try{
-			String clientId = prop.get(Constants.LOCAL_HOST)+RouterConsts.ID_SPLIT+topic;
-			String type = prop.get(Constants.TYPE);
 			if ((sessionId = routercontext.authenticate(user, pwd, topic, prop)) != null) {
 				List<String> presrvlist = routercontext.getSessionStats(topic);
 				if (presrvlist != null && presrvlist.size() > 0) {
@@ -51,6 +52,9 @@ public class BizRouterService implements RouterService.Iface {
 					if ("PUB".equalsIgnoreCase(type)) {
 						String chosensrv = lb.choose(topic, clientId);
 						serverList.add(chosensrv);
+						log.info(String.format(
+								"One request has been received: thread=%s,sessionId=%s,brokerurl=%s",
+								Thread.currentThread().getId(), sessionId, chosensrv));						
 					} else {
 						for (String presrv : presrvlist) {
 							serverList.add(presrv);

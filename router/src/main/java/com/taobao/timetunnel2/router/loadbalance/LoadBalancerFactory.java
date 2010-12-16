@@ -5,7 +5,6 @@ import org.apache.log4j.Logger;
 public class LoadBalancerFactory {	
 	private final static Logger log = Logger.getLogger(LoadBalancerFactory.class);
 	
-	@SuppressWarnings("unchecked")
 	public static synchronized LoadBalancer getLoadBalancerPolicy(String policy){
 		
 		String pkg = LoadBalancerFactory.class.getPackage().getName();

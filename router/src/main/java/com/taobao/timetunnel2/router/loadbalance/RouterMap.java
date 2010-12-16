@@ -4,12 +4,17 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.taobao.timetunnel2.router.biz.BrokerUrl;
+import com.taobao.timetunnel2.router.common.ParamsKey;
+import com.taobao.timetunnel2.router.zkclient.ZooKeeperClientPool;
+import com.taobao.timetunnel2.router.zkclient.ZookeeperService;
+
 public class RouterMap {
 	private final static RouterMap instance = new RouterMap();
 	private ConcurrentHashMap<String, RouterCircle> routerMap = new ConcurrentHashMap<String, RouterCircle>();
 	private ConcurrentHashMap<String, String> clientMap = new ConcurrentHashMap<String, String>();
-	private ConcurrentHashMap<String, String> clientConstMap = new ConcurrentHashMap<String, String>();
-	
+	private ZooKeeperClientPool zkpool = ZooKeeperClientPool.getInstance();
+	private ZookeeperService client = zkpool.getZooKeeperClient();
 	public static RouterMap getInstance() {
 		return instance;
 	}
@@ -35,12 +40,16 @@ public class RouterMap {
 	
 	public void setClientStatus(String clientId, String brokerUrl){
 		clientMap.put(clientId, brokerUrl);
-		clientConstMap.put(clientId, brokerUrl);
+	}
+	
+	public void setClientConstStatus(String clientId, String brokerUrl){
+		ZookeeperService client = zkpool.getZooKeeperClient();
+		client.setData(ParamsKey.ZNode.status+"/"+clientId, brokerUrl);
 	}
 	
 	public void clearClientStatus(String clientId){
 		clientMap.remove(clientId);
-		clientConstMap.remove(clientId);
+		client.delete(ParamsKey.ZNode.status+"/"+clientId, true);
 	}
 	
 	public void changeClientStatus(Collection<String> newBrokers){	
@@ -52,7 +61,7 @@ public class RouterMap {
 	}
 	
 	public String getClientConstStatus(String clientId){
-		return clientConstMap.get(clientId);
+		return client.getData(ParamsKey.ZNode.status+"/"+clientId);
 	}
 	
 	public String getFollower(String topic, String broker){
@@ -78,7 +87,6 @@ public class RouterMap {
 	public void clearAll(){
 		routerMap = null;
 		clientMap = null;
-		clientConstMap = null;	
 	}
 
 }

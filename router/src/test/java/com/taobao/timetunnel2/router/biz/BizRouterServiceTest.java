@@ -1,6 +1,9 @@
 package com.taobao.timetunnel2.router.biz;
 
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.thrift.TException;
@@ -9,10 +12,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.taobao.timetunnel2.router.common.RouterConsts;
-import com.taobao.timetunnel2.router.loadbalance.RouterContext;
+import com.google.gson.Gson;
 import com.taobao.timetunnel.thrift.router.Constants;
+import com.taobao.timetunnel.thrift.router.ExReason;
 import com.taobao.timetunnel.thrift.router.RouterException;
+import com.taobao.timetunnel2.router.loadbalance.RouterContext;
 
 public class BizRouterServiceTest {
 	private BizRouterService brs;
@@ -32,34 +36,40 @@ public class BizRouterServiceTest {
 		try {			
 			
 			Map<String, String> prop = new HashMap<String, String>();
-			prop.put(Constants.LOCAL_HOST, "localhost");
+			prop.put(Constants.LOCAL_HOST, "host2:9090");
+			prop.put(Constants.TIMEOUT, "100");
 			prop.put(Constants.RECVWINSIZE, "200");
 			prop.put(Constants.TYPE, "PUB");
-			String s = brs.getBroker("tt", "2", "dfs", "0", prop);
-			
-			Assert.assertEquals(RouterConsts.ERRMSG_NO_SERVER, s);
-			s = brs.getBroker("tt", "3", "dfs", "1", prop);
-			Assert.assertEquals(RouterConsts.ERRMSG_AUTH_FAIL, s);
-			s = brs.getBroker("tt", "2", "test1", "0", prop);
-			
-			/*List<String> expected = new ArrayList<String>();
-			expected.add("{\"master\":\"dwbasis130001.sqa.cm4:39903\",\"slave\":[]}");
-			expected.add("{\"master\":\"2:39903\",\"slave\":[]}");
-			
-			Gson gson = new Gson();
-			BrokerSrvRlt obj = gson.fromJson(new StringReader(s), BrokerSrvRlt.class);
-			List<String> actual = obj.getBrokerserver();
-			Assert.assertEquals(expected, actual);
-			Assert.assertEquals(2, actual.size());
-			Assert.assertTrue(expected.containsAll(actual));*/
-			
+			try{				
+				brs.getBroker("tt", "2", "dfs", "0", prop);
+			}catch(RouterException e){
+				Assert.assertEquals(ExReason.NOTFOUND_BROKERURL.getValue(), e.code);
+			}
+			try{				
+				brs.getBroker("tt", "3", "dfs", "1", prop);
+			}catch(RouterException e){
+				Assert.assertEquals(ExReason.INVALID_USERORPWD.getValue(), e.code);
+			}
+			try{				
+				String s = brs.getBroker("tt", "2", "acookie", "1", prop);
+				
+				List<String> expected = new ArrayList<String>();
+				expected.add("10.232.130.1:9999");
+				expected.add("10.232.130.2:9999");
+				expected.add("10.232.130.3:9999");
+				
+				Gson gson = new Gson();
+				BrokerSrvRlt obj = gson.fromJson(new StringReader(s), BrokerSrvRlt.class);
+				List<String> actual = obj.getBrokerserver();
+				Assert.assertEquals(expected.get(0), actual.get(0));
+				Assert.assertEquals(1, actual.size());
+				Assert.assertTrue(expected.containsAll(actual));
+			}catch(RouterException e){
+				Assert.assertEquals(ExReason.INVALID_USERORPWD, e.code);
+			}			
 		} catch (TException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (RouterException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		} 
 	}
 
 }

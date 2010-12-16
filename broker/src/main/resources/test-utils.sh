@@ -9,7 +9,7 @@ BASE_LOG=${BASE_DIR}/log;
 
 
 # VM Options : -XX:NewRatio=1 
-script="java -Xmx2048m -Xms2048m -XX:HeapDumpPath="${BASE_LOG}/testutils.hprof" -XX:+HeapDumpOnOutOfMemoryError -Dlog4j.configuration=file:${BASE_CONF}/log4j.properties -classpath ${BASE_LIB}/*: com.taobao.timetunnel.client.TestClient $*";
+script="java -Xmx2048m -Xms2048m -XX:HeapDumpPath="${BASE_LOG}/testutils.hprof" -XX:+HeapDumpOnOutOfMemoryError -Dtt.log.file=${BASE_LOG}/testutil.log -Dlog4j.configuration=file:${BASE_CONF}/log4j.properties -classpath ${BASE_LIB}/*: com.taobao.timetunnel.client.TestClient $*";
 echo $script 
 $script
 

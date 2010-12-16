@@ -62,7 +62,9 @@ public class BufferTest {
 
     assertThat(queue.remove(), is(notNullValue()));
 
-    points.get(DEFAULT_CAPACITY - 1).clear();
+    for (Point<ByteBuffer> point : points) {
+      point.clear();
+    }
 
     assertThat(removed, is(true));
 
@@ -79,10 +81,7 @@ public class BufferTest {
       System.arraycopy(src, 0, buffer, 0, src.length);
     }
 
-    @Override
-    public void removeOn(final int size) {
-      removed = true;
-    }
+    private int bs;
 
     @Override
     public void write(final ByteBuffer[] buffers, long size) throws IOException {
@@ -90,6 +89,7 @@ public class BufferTest {
       for (final ByteBuffer byteBuffer : buffers) {
         s += byteBuffer.remaining();
       }
+      bs = s;
       all = ByteBuffer.allocate(s);
       for (final ByteBuffer byteBuffer : buffers) {
         all.put(byteBuffer);
@@ -97,9 +97,13 @@ public class BufferTest {
     }
 
     private ByteBuffer all;
+    private int reduce;
 
     @Override
-    public void reduce(int length) {}
+    public void reduce(int length) {
+      reduce += length + Segment.DATA_SIZE_LENGTH;
+      removed = (reduce == bs);
+    }
   };
 
 }

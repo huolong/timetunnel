@@ -31,8 +31,8 @@ public class ConstantLoadBalancerTest {
 	@Test
 	public void testFailOverChoose() {
 		LoadBalancer policy = handler.getPolicy(ParamsKey.LBPolicy.s_policy);
-		//host1-connect
-		String broker = policy.choose("acookie", "host1");
+		//host1-connect 
+		String broker = policy.choose("acookie", "tthost1");
 		Assert.assertEquals("10.232.130.1:9999", broker);
 		//host2-connect
 		broker = policy.choose("acookie", "host2");		
@@ -64,7 +64,7 @@ public class ConstantLoadBalancerTest {
 	public void testChoose() {
 		LoadBalancer policy = handler.getPolicy(ParamsKey.LBPolicy.s_policy);
 		Map<String, Integer> accumulator = new HashMap<String, Integer>();
-		for(int i=0; i<1000; i++){			
+		for(int i=0; i<100; i++){			
 			counter(accumulator,policy.choose("acookie", "host"+i));
 		}
 		for(String key: accumulator.keySet()){

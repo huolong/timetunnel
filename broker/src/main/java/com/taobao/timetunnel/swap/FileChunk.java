@@ -5,8 +5,8 @@ import static com.taobao.timetunnel.swap.Chunk.Segment.DATA_SIZE_LENGTH;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,7 +29,7 @@ final class FileChunk implements Chunk {
     this.maxMessageSize = maxMessageSize;
 
     try {
-      channel = new FileOutputStream(path).getChannel();
+      channel = new RandomAccessFile(path, "rwd").getChannel();
     } catch (final Exception e) {
       throw new RuntimeException(e);
     }
@@ -50,11 +50,11 @@ final class FileChunk implements Chunk {
   public Point<ByteBuffer> freeze(final ByteBuffer byteBuffer) {
     if (!hasRemainingFor(byteBuffer))
       throw new IllegalArgumentException(this + " has not remaining for buffer.");
+    final long position = size.getAndAdd(byteBuffer.remaining() + DATA_SIZE_LENGTH);
     if (!buffer.hasRemainingFor(byteBuffer)) {
       buffer.freeze();
-      buffer = newBuffer(maxMessageSize);
+      buffer = newBuffer(position, maxMessageSize);
     }
-    size.addAndGet(byteBuffer.remaining() + DATA_SIZE_LENGTH);
     return buffer.write(byteBuffer);
   }
 
@@ -78,15 +78,15 @@ final class FileChunk implements Chunk {
     return builder.toString();
   }
 
-  private Buffer newBuffer(final int bufferSize) {
+  private Buffer newBuffer(final long position, final int bufferSize) {
     try {
-      return buffer(segment(), bufferSize);
+      return buffer(segment(position), bufferSize);
     } catch (final Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  private Segment segment() throws IOException {
+  private Segment segment(final long position) throws IOException {
     return new Segment() {
       @Override
       public void read(final byte[] buffer) throws IOException {
@@ -97,14 +97,11 @@ final class FileChunk implements Chunk {
 
       @Override
       public void reduce(final int length) {
-        size.addAndGet(-(length + DATA_SIZE_LENGTH));
-      }
-
-      @Override
-      public void removeOn(final int size) {
-        if (position + size < chunkSize()) return;
-        if (path.delete()) LOGGER.info("{} deleted", this);
-        else LOGGER.warn("{} delete failed", this);
+        final int delta = -(length + DATA_SIZE_LENGTH);
+        if (size.addAndGet(delta) == 0 && !channel.isOpen()) {
+          if (path.delete()) LOGGER.info("{} deleted", FileChunk.this);
+          else LOGGER.warn("{} delete failed", FileChunk.this);
+        }
       }
 
       @Override
@@ -118,11 +115,6 @@ final class FileChunk implements Chunk {
           wrote += channel.write(buffers);
       }
 
-      private long chunkSize() {
-        return size.get();
-      }
-
-      final long position = size.get();
     };
   }
 

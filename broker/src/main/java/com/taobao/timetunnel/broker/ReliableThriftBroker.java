@@ -107,14 +107,14 @@ public final class ReliableThriftBroker extends ThriftBroker<ByteBuffer> impleme
     }, "broker-internal").start();
     Thread.currentThread().setName("broker-external");
     external.serve();
+    final ReliableServiceClient client = reliableService.get();
+    if (client != null) client.dispose();
+    if (internal != null) internal.stop();
   }
 
   @Override
   protected void doStop() {
     if (external != null) external.stop();
-    if (internal != null) internal.stop();
-    final ReliableServiceClient client = reliableService.get();
-    if (client != null) client.dispose();
     tunnels.dispose();
     reliables.dispose();
   }
