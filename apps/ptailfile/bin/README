@@ -1,4 +1,0 @@
-requirement: python version at least 2.6.4
-
-**should include python tt client**
-export PYTHONPATH=/home/admin/TimeTunnel/pclient/src/:$PYTHONPATH
