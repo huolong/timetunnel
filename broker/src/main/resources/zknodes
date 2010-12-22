@@ -1,0 +1,26 @@
+/timetunnel
+/timetunnel/clients
+/timetunnel/clients/pub0 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub1 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub2 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub3 : {"type":"sub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub4 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub5 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub6 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub7 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub8 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/pub9 : {"type":"pub", "timeout":600, "subscriber":"", "receiveWindowSize":-1}
+/timetunnel/clients/sub0 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub1 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub2 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub3 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub4 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub5 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub6 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub7 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub8 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/clients/sub9 : {"type":"sub", "timeout":600, "subscriber":"dw", "receiveWindowSize":30}
+/timetunnel/categories
+/timetunnel/categories/chat
+/timetunnel/categories/chat/subscribers
+/timetunnel/categories/chat/subscribers/dw
