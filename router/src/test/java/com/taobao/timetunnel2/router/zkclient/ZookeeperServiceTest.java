@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import junit.framework.TestCase;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,8 +16,9 @@ import com.taobao.timetunnel2.router.common.ParamsKey;
 import com.taobao.timetunnel2.router.common.RouterConsts;
 import com.taobao.timetunnel2.router.exception.ServiceException;
 import com.taobao.timetunnel2.router.loadbalance.RouterContext;
+import com.taobao.timetunnel2.router.zkclient.ZooKeeperMonitor.WatchType;
 
-public class ZookeeperServiceTest {
+public class ZookeeperServiceTest extends TestCase{
 	private ZookeeperServiceAgent zks;
 	
 	@Before
@@ -32,10 +35,10 @@ public class ZookeeperServiceTest {
 		ZookeeperProperties zprops = new ZookeeperProperties(prop);
 		try {
 			RouterContext context = RouterContext.getContext();
-			Map<String, String> watchpaths = new HashMap<String, String>();
-			watchpaths.put(ParamsKey.ZNode.topic, RouterConsts.WATCH_MODE_SETDATA);
-			watchpaths.put(ParamsKey.ZNode.user, RouterConsts.WATCH_MODE_SETDATA);
-			watchpaths.put(ParamsKey.ZNode.broker, RouterConsts.WATCH_MODE_CHILDCHANGE);
+			Map<String, WatchType> watchpaths = new HashMap<String, WatchType>();
+			watchpaths.put(ParamsKey.ZNode.topic, WatchType.DataChanged);
+			watchpaths.put(ParamsKey.ZNode.user, WatchType.DataChanged);
+			watchpaths.put(ParamsKey.ZNode.broker, WatchType.ChildrenChanged);
 			zks = new ZookeeperServiceAgent(zprops, watchpaths, context);
 		} catch (ServiceException e) {
 			e.printStackTrace();

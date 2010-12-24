@@ -53,7 +53,8 @@ public class ByteBufferMessageCompactorTest extends InjectMocksSupport {
 
   @Test
   public void shouldNotBeMemoryLeak() throws Exception {
-    ByteBufferMessageCompactor compactor = new ByteBufferMessageCompactor(monitor, home, 4096);
+    ByteBufferMessageCompactor compactor =
+      new ByteBufferMessageCompactor(monitor, home, (1 << 20), (1 << 10));
     long free = MemoryMonitor.free();
     int cap = 100;
     List<Message<ByteBuffer>> messages = new ArrayList<Message<ByteBuffer>>(cap);
@@ -66,8 +67,8 @@ public class ByteBufferMessageCompactorTest extends InjectMocksSupport {
       itr.next().readBy(subscriber);
       itr.remove();
     }
-    
-//    Thread.sleep(500L);
+
+    // Thread.sleep(500L);
     System.gc();
     Thread.sleep(100L);
     assertThat(MemoryMonitor.free(), is(greaterThan(free)));

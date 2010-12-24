@@ -4,7 +4,6 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Callable;
 
 import com.taobao.timetunnel.thrift.gen.ExternalService.Client;
-import com.taobao.timetunnel.thrift.gen.Failure;
 import com.taobao.timetunnel.thrift.util.ClientUtils;
 import com.taobao.util.Bytes;
 
@@ -57,9 +56,9 @@ abstract class AClient implements Callable<Void> {
     for (int i = 0;;) {
       try {
         return doCall(client);
-      } catch (final Failure failure) {
-        if (i++ < retry) report.counterOf(failure).increment();
-        throw failure;
+      } catch (final Exception e) {
+        if (i++ < retry) report.counterOf(e).increment();
+        else throw e;
       }
     }
   }

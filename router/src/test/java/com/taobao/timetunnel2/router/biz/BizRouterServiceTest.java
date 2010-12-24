@@ -16,19 +16,28 @@ import com.google.gson.Gson;
 import com.taobao.timetunnel.thrift.router.Constants;
 import com.taobao.timetunnel.thrift.router.ExReason;
 import com.taobao.timetunnel.thrift.router.RouterException;
+import com.taobao.timetunnel2.router.common.ParamsKey;
+import com.taobao.timetunnel2.router.loadbalance.LoadBalancer;
+import com.taobao.timetunnel2.router.loadbalance.LoadBalancerFactory;
 import com.taobao.timetunnel2.router.loadbalance.RouterContext;
 
 public class BizRouterServiceTest {
 	private BizRouterService brs;
+	private RouterContext context;
 
 	@Before
 	public void setUp() throws Exception {
-		RouterContext context = RouterContext.getContext();
+		context = RouterContext.getContext();
+		LoadBalancer policy1 = LoadBalancerFactory.getLoadBalancerPolicy("RoundRobinStatelessLoadBalancer");	
+		context.setPolicy(ParamsKey.LBPolicy.policy, policy1);
+		LoadBalancer policy2 = LoadBalancerFactory.getLoadBalancerPolicy("ConstantLoadBalancer");	
+		context.setPolicy(ParamsKey.LBPolicy.s_policy, policy2);
 		brs = new BizRouterService(context);
 	}
 
 	@After
 	public void tearDown() throws Exception {
+		context.cleanup();
 	}
 
 	@Test
@@ -59,11 +68,19 @@ public class BizRouterServiceTest {
 				expected.add("10.232.130.3:9999");
 				
 				Gson gson = new Gson();
-				BrokerSrvRlt obj = gson.fromJson(new StringReader(s), BrokerSrvRlt.class);
-				List<String> actual = obj.getBrokerserver();
-				Assert.assertEquals(expected.get(0), actual.get(0));
-				Assert.assertEquals(1, actual.size());
-				Assert.assertTrue(expected.containsAll(actual));
+				BrokerSrvRlt obj1 = gson.fromJson(new StringReader(s), BrokerSrvRlt.class);
+				List<String> actual1 = obj1.getBrokerserver();
+				String last = actual1.get(0);
+
+				Assert.assertEquals(1, actual1.size());
+				Assert.assertTrue(expected.containsAll(actual1));
+				System.out.println("last="+last);
+				s = brs.getBroker("tt", "2", "acookie", "1", prop);
+				BrokerSrvRlt obj2 = gson.fromJson(new StringReader(s), BrokerSrvRlt.class);
+				List<String> actual2 = obj2.getBrokerserver();
+				System.out.println("new="+actual2.get(0));
+				Assert.assertEquals(last, actual2.get(0));
+				
 			}catch(RouterException e){
 				Assert.assertEquals(ExReason.INVALID_USERORPWD, e.code);
 			}			

@@ -12,13 +12,17 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
+import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.taobao.timetunnel.swap.ByteBufferFreezer;
-import com.taobao.timetunnel.swap.Freezer;
+import com.taobao.util.DirectoryCleaner;
+import com.taobao.util.Race;
 
 /**
  * {@link FreezerTest}
@@ -29,32 +33,64 @@ import com.taobao.timetunnel.swap.Freezer;
  */
 public class FreezerTest {
 
-  private static final int BLOCK_SIZE = 4096;
-
   @Test
   public void freezeGetRemove() throws Exception {
     final int times = 100000;
 
     final List<Point<ByteBuffer>> points = new ArrayList<Point<ByteBuffer>>(times);
     for (int i = 0; i < times; i++) {
-      final ByteBuffer buffer = ByteBuffer.allocate(1024);
-      for (int j = 0; j < buffer.capacity(); j++) {
-        buffer.put((byte) 5);
-      }
-      buffer.flip();
-      points.add(freezer.freeze(buffer.putInt(0, i)));
+      points.add(freezer.freeze(newByteBuffer().putInt(0, i)));
     }
 
     for (int i = 0; i < times; i++) {
-      assertThat(points.get(i).get().getInt(), is(i));
+      final ByteBuffer byteBuffer = points.get(i).get();
+      assertThat(byteBuffer.getInt(), is(i));
     }
 
     for (final Point<ByteBuffer> point : points) {
       point.clear();
     }
 
-    assertThat(new File("./target/category/client").list().length, is(1));
+    freezer.dispose();
+    assertThat(new File("./target/category/client").list().length, is(0));
 
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void freezingRemovingRace() throws Exception {
+    final int times = 100;
+    final Queue<Point<ByteBuffer>> queue = new ConcurrentLinkedQueue<Point<ByteBuffer>>();
+    final Random random = new Random(System.currentTimeMillis());
+    final Callable<Object> removing = new Callable<Object>() {
+
+      @Override
+      public Object call() throws Exception {
+        for (int i = 0; i < times; i++) {
+          queue.offer(freezer.freeze(newByteBuffer()));
+          Thread.sleep(random.nextInt(10));
+        }
+        return null;
+      }
+    };
+    final Callable<Object> freezing = new Callable<Object>() {
+
+      @Override
+      public Object call() throws Exception {
+        for (int i = 0; i < times;) {
+          Thread.sleep(random.nextInt(10));
+          final Point<ByteBuffer> point = queue.poll();
+          if (point == null) continue;
+          point.clear();
+          i++;
+        }
+        // TODO Auto-generated method stub
+        return null;
+      }
+    };
+    Race.run(freezing, removing);
+    freezer.dispose();
+    assertThat(home.list().length, is(0));
   }
 
   @Test
@@ -100,7 +136,8 @@ public class FreezerTest {
 
   @Before
   public void setUp() throws Exception {
-    freezer = new ByteBufferFreezer(new File("./target/category/client"), (1<<10) * 16, (1 << 20) * 64);
+    DirectoryCleaner.clean(home);
+    freezer = new ByteBufferFreezer(home, (1 << 20) * 64, (1 << 15));
   }
 
   @After
@@ -145,13 +182,7 @@ public class FreezerTest {
     channel.close();
   }
 
-  protected void prepare(final File file) throws FileNotFoundException, IOException {
-    final FileChannel channel = new FileOutputStream(file).getChannel();
-    channel.write(buffer(BLOCK_SIZE * TIMES));
-    channel.close();
-  }
-
-  protected ByteBuffer buffer(int capacity) {
+  protected ByteBuffer buffer(final int capacity) {
     final ByteBuffer buffer = ByteBuffer.allocate(capacity);
     while (buffer.hasRemaining()) {
       buffer.putInt(1);
@@ -159,6 +190,25 @@ public class FreezerTest {
     buffer.flip();
     return buffer;
   }
+
+  protected void prepare(final File file) throws FileNotFoundException, IOException {
+    final FileChannel channel = new FileOutputStream(file).getChannel();
+    channel.write(buffer(BLOCK_SIZE * TIMES));
+    channel.close();
+  }
+
+  private ByteBuffer newByteBuffer() {
+    final ByteBuffer buffer = ByteBuffer.allocate(1024);
+    for (int j = 0; j < buffer.capacity(); j++) {
+      buffer.put((byte) 5);
+    }
+    buffer.flip();
+    return buffer;
+  }
+
+  private static final int BLOCK_SIZE = 4096;
+
+  final File home = new File("./target/category/client");
 
   private static final int TIMES = 100;
 

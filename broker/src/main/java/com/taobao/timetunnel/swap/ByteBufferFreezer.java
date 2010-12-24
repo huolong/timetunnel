@@ -2,14 +2,15 @@ package com.taobao.timetunnel.swap;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,179 +19,257 @@ import org.slf4j.LoggerFactory;
  * {@link ByteBufferFreezer}
  * 
  * @author <a href=mailto:jushi@taobao.com>jushi</a>
- * @created 2010-11-18
+ * @created 2010-12-9
  * 
  */
-public final class ByteBufferFreezer implements Freezer<ByteBuffer> {
+final class ByteBufferFreezer implements Freezer<ByteBuffer> {
 
-  public ByteBufferFreezer(final File home, int maxMessageSize) {
-    this(home, maxMessageSize * 16, DEFAULT_FILE_MAX_SIZE);
-  }
-
-  public ByteBufferFreezer(final File home, final int buffersMaxSize, final int fileMaxSize) {
+  ByteBufferFreezer(final File home, final int chunkCapacity, final int chunkBuffer) {
     this.home = home;
-    if (home.exists()) dispose();
-    if (!home.mkdirs()) throw new IllegalStateException("Can't mkdir " + home);
-
-    this.buffersMaxSize = buffersMaxSize;
-    this.fileMaxSize = fileMaxSize;
+    this.chunkCapacity = chunkCapacity;
+    this.chunkBuffer = chunkBuffer;
+    chunk = newChunk();
+    if (!home.exists()) home.mkdirs();
   }
 
   @Override
   public synchronized void dispose() {
-    try {
-      if (channel != null) channel.close();
-      current = null;
-      if (!home.exists()) return;
-
-      final File[] listFiles = home.listFiles();
-      for (final File file : listFiles) {
-        delete(file, "ByteBufferFileFreezer disposing");
-      }
-      delete(home, "ByteBufferFileFreezer disposing");
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
-    }
+    chunk.fix();
   }
 
   @Override
   public synchronized Point<ByteBuffer> freeze(final ByteBuffer buffer) {
-    // TODO big buffer to optimizate
-    if (current == null) newFileAndChannel();
-    serial += 1;
-
-    final int size = buffer.remaining();
-    final ByteBuffer duplicate = buffer.duplicate();
-    duplicate.mark();
-    try {
-      if (channel.size() + size >= fileMaxSize) return eofPoint(duplicate);
-      return filePoint(size, duplicate);
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
+    if (!chunk.hasRemainingFor(buffer.remaining())) {
+      chunk.fix();
+      chunk = newChunk();
     }
+    return chunk.freeze(buffer);
   }
 
-  private void delete(final File file, final String procedure) {
-    if (!file.delete()) LOGGER.warn("Can't delete file {} in {}", file, procedure);
-    else LOGGER.info("Delete file {} in {}", file, procedure);
+  private Chunk newChunk() {
+    return new Chunk(new File(home, seq() + ""), chunkCapacity, chunkBuffer);
   }
 
-  private Point<ByteBuffer> eofPoint(final ByteBuffer duplicate) {
-    final FilePoint point = new EOFPoint(current, position, duplicate);
-    buffers.add(duplicate);
-    newFileAndChannel();
-    return point;
+  private long seq() {
+    return (seq == Long.MAX_VALUE) ? (seq = 0) : seq++;
   }
 
-  private Point<ByteBuffer> filePoint(final int size, final ByteBuffer duplicate) throws IOException {
-    final FilePoint point = new FilePoint(current, position, duplicate);
-    buffers.add(duplicate);
-    buffesSize += size;
-    if (buffesSize > buffersMaxSize) flush();
-    position += size;
-    return point;
-  }
-
-  private void flush() throws IOException {
-    final ByteBuffer[] srcs = new ByteBuffer[buffers.size()];
-    final Iterator<ByteBuffer> itr = buffers.iterator();
-    for (int i = 0; i < srcs.length; i++) {
-      srcs[i] = itr.next();
-      itr.remove();
-    }
-
-    channel.write(srcs);
-    // channel.force(false);
-
-    buffesSize = 0;
-  }
-
-  private void newFileAndChannel() {
-    try {
-      if (channel != null) {
-        flush();
-        channel.close();
-      }
-      current = new File(home, serial + "");
-      channel = new FileOutputStream(current).getChannel();
-      position = 0;
-      LOGGER.info("Create new file {}", current);
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(ByteBufferFreezer.class);
-
-  public static final int DEFAULT_FILE_MAX_SIZE = (1 << 20) * 64;
-
+  private final int chunkCapacity;
+  private final int chunkBuffer;
   private final File home;
-  private final List<ByteBuffer> buffers = new ArrayList<ByteBuffer>();
-  private final int buffersMaxSize;
-  private final int fileMaxSize;
 
-  private File current;
-  private FileChannel channel;
-  private long position;
-  private long serial = 0;
-  private int buffesSize = 0;
+  private Chunk chunk;
+  private long seq = 0;
 
   /**
-   * {@link EOFPoint}
+   * {@link Chunk} .
+   * 
    */
-  private class EOFPoint extends FilePoint {
+  private static final class Chunk {
 
-    public EOFPoint(final File file, final long offset, final ByteBuffer buffer) {
-      super(file, offset, buffer);
+    Chunk(final File path, final int capacity, final int buffer) {
+      this.path = path;
+      this.capacity = capacity;
+      this.buffer = ByteBuffer.allocate(buffer);
+      LOGGER.info("{} created.", path);
     }
 
-    @Override
-    public void clear() {
-      delete(file, "EOFPoint removing");
+    public synchronized void fix() {
+      if (fixed) return;
+      fixed = true;
+      flush();
     }
 
-  }
+    public synchronized Point<ByteBuffer> freeze(final ByteBuffer byteBuffer) {
+      if (fixed) throw new IllegalStateException("Can freeze buffer to a fixed chunk");
 
-  /**
-   * {@link FilePoint}
-   */
-  private class FilePoint implements Point<ByteBuffer> {
+      final int length = byteBuffer.remaining();
+      if (bufferRemainingLessThan(length)) {
+        flush();
+        buffer.clear();
+      }
 
-    public FilePoint(final File file, final long offset, final ByteBuffer buffer) {
-      this.file = file;
-      this.offset = offset;
-      length = buffer.remaining();
-      this.buffer = new WeakReference<ByteBuffer>(buffer);
+      buffer.putInt(length);
+
+      final ByteBufferPoint bufferPoint = new ByteBufferPoint(buffer, buffer.position(), length);
+
+      buffer.put(byteBuffer);
+
+      final ReplaceablePoint point = new ReplaceablePoint(bufferPoint, position, length);
+      pendings.add(point);
+      forward(length);
+      return point;
     }
 
-    @Override
-    public final ByteBuffer get() {
-      final ByteBuffer value = buffer.get();
-      if (value != null) return (ByteBuffer) value.reset();
-      final ByteBuffer buffer = ByteBuffer.allocate(length);
+    public synchronized boolean hasRemainingFor(final int size) {
+      if (fixed) throw new IllegalStateException("Can freeze buffer to a fixed chunk");
+      return position + size + DATA_SIZE_LENGTH <= capacity;
+    }
 
-      FileChannel fileChannel = null;
+    private boolean bufferRemainingLessThan(final int length) {
+      return buffer.position() + length + DATA_SIZE_LENGTH > buffer.capacity();
+    }
+
+    private void doFlush() throws FileNotFoundException, IOException {
+      final FileOutputStream fos = new FileOutputStream(path, true);
       try {
-        fileChannel = new FileInputStream(file).getChannel();
-        fileChannel.read(buffer, offset);
-        return (ByteBuffer) buffer.flip();
+        final FileChannel channel = fos.getChannel();
+        channel.write((ByteBuffer) buffer.flip());
+        channel.close();
+      } finally {
+        fos.close();
+      }
+    }
+
+    private void flush() {
+      if (pendings.isEmpty()) return;
+
+      try {
+        doFlush();
+        replacePendings();
       } catch (final Exception e) {
         throw new RuntimeException(e);
-      } finally {
-        try {
-          if (fileChannel != null) fileChannel.close();
-        } catch (final Exception e) {/* ignore */}
       }
     }
 
-    @Override
-    public void clear() {}
+    private void forward(final int length) {
+      position += length + DATA_SIZE_LENGTH;
+    }
 
-    private final WeakReference<ByteBuffer> buffer;
-    private final int length;
-    private final long offset;
+    private void replacePendings() throws IOException {
+      Slicer slicer = null;
+      while (!pendings.isEmpty()) {
+        if (slicer == null) slicer = new Slicer(path, pendings.size(), fixed);
+        final ReplaceablePoint point = pendings.remove();
+        point.replace(slicer.slice(point.position, point.length));
+      }
+    }
 
-    protected final File file;
+    private boolean fixed;
+    private int position;
+
+    private static final int DATA_SIZE_LENGTH = 4;
+    private static final Logger LOGGER = LoggerFactory.getLogger(Chunk.class);
+
+    private final File path;
+    private final ByteBuffer buffer;
+    private final int capacity;
+    private final Queue<ReplaceablePoint> pendings = new LinkedList<ReplaceablePoint>();
+
+    /**
+     * {@link ByteBufferPoint}
+     */
+    private static final class ByteBufferPoint implements Point<ByteBuffer> {
+
+      public ByteBufferPoint(final ByteBuffer byteBuffer, final int position, final int length) {
+        this.position = position;
+        this.length = length;
+        this.byteBuffer = byteBuffer;
+      }
+
+      @Override
+      public void clear() {
+        byteBuffer = null;
+      }
+
+      @Override
+      public ByteBuffer get() {
+        return (ByteBuffer) byteBuffer.duplicate().position(position).limit(position + length);
+      }
+
+      private final int position;
+      private final int length;
+      private volatile ByteBuffer byteBuffer;
+
+    }
+
+    /**
+     * {@link ReplaceablePoint}
+     */
+    private final static class ReplaceablePoint implements Point<ByteBuffer> {
+
+      public ReplaceablePoint(final Point<ByteBuffer> delegatee,
+                              final int position,
+                              final int length) {
+        this.position = position;
+        this.length = length;
+        reference = new AtomicReference<Point<ByteBuffer>>(delegatee);
+      }
+
+      @Override
+      public final void clear() {
+        reference.getAndSet(null).clear();
+      }
+
+      @Override
+      public final ByteBuffer get() {
+        return reference.get().get();
+      }
+
+      public final void replace(final Point<ByteBuffer> delegatee) {
+        final Point<ByteBuffer> pre = reference.getAndSet(delegatee);
+        if (pre == null) delegatee.clear(); // point to cache has already
+                                            // cleared.
+      }
+
+      private final AtomicReference<Point<ByteBuffer>> reference;
+      private final int position;
+      private final int length;
+
+    }
+
+    /**
+     * {@link Slicer}
+     */
+    private final static class Slicer {
+
+      private final boolean last;
+
+      public Slicer(final File file, int size, boolean last) throws IOException {
+        this.file = file;
+        this.last = last;
+        final FileInputStream fis = new FileInputStream(file);
+        channel = fis.getChannel();
+        referenceCount = new AtomicInteger(size);
+      }
+
+      public Point<ByteBuffer> slice(final int position, final int length) {
+        return new Point<ByteBuffer>() {
+
+          @Override
+          public void clear() {
+            if (referenceCount.decrementAndGet() == 0) {
+              try {
+                channel.close();
+              } catch (final Exception e) {
+                LOGGER.error("Can't close file channel of  " + file, e);
+              }
+
+              if (last) {
+                if (file.delete()) LOGGER.info("{} deleted", file);
+                else LOGGER.warn("{} delete failed", file);
+              }
+            }
+          }
+
+          @Override
+          public ByteBuffer get() {
+            final ByteBuffer byteBuffer = ByteBuffer.allocate(length);
+            try {
+              channel.read(byteBuffer, position + DATA_SIZE_LENGTH);
+            } catch (final Exception e) {
+              LOGGER.error("Can't read from " + file, e);
+            }
+            return (ByteBuffer) byteBuffer.flip();
+          }
+        };
+      }
+
+      private final FileChannel channel;
+      private final File file;
+      private final AtomicInteger referenceCount;
+    }
 
   }
+
 }

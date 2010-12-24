@@ -27,9 +27,10 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
 
   public ByteBufferMessageCompactor(final MemoryMonitor monitor,
                                     final File home,
-                                    final int maxMessageSize) {
+                                    final int chunkCapacity,
+                                    final int chunkBuffer) {
     this.monitor = monitor;
-    freezers = new ByteBufferFreezers(home, maxMessageSize);
+    freezers = new ByteBufferFreezers(home, chunkCapacity, chunkCapacity);
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 
       @Override
@@ -79,7 +80,7 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
 
     @Override
     public void run() {
-      LOGGER.info("Start compact messages because memory is in short ({}).", monitor);
+      LOGGER.debug("Start compact messages because memory is in short ({}).", monitor);
       int compacted = 0;
 
       for (;; compacted++) {
@@ -91,13 +92,7 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
 
       compacting.compareAndSet(true, false);
 
-      if (monitor.isShort()) {
-        LOGGER.warn("Compacted {} messages but memory still in short ({}), "
-            + "it could be a memory leak signal.", compacted, monitor);
-      } else {
-        LOGGER.info("Compacted {} messages and {}.", compacted, monitor);
-      }
-
+      LOGGER.debug("Compacted {} messages and {}.", compacted, monitor);
     }
   }
 
@@ -158,6 +153,11 @@ public final class ByteBufferMessageCompactor implements MessageFactory<ByteBuff
     @Override
     public Set<String> subscribers() {
       return message.subscribers();
+    }
+
+    @Override
+    public String toString() {
+      return message.toString();
     }
 
     private final Message<ByteBuffer> message;

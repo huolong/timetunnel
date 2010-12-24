@@ -40,6 +40,22 @@ public abstract class Repository<K, V> {
     return oldCreator.get();
   }
 
+  /**
+   * @param key
+   * @return
+   */
+  public final V uncheckedGetOrCreateIfNoExist(final K key) {
+    try {
+      return getOrCreateIfNotExist(key);
+    } catch (final InterruptedException e) {
+      throw new RuntimeException(e);
+    } catch (final ExecutionException e) {
+      final Throwable cause = e.getCause();
+      if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+      throw new RuntimeException(cause);
+    }
+  }
+
   private final FutureTask<V> newLazyCreator(final K key) {
     return new FutureTask<V>(new Callable<V>() {
 

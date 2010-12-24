@@ -1,6 +1,8 @@
 package com.taobao.timetunnel2.router.zkclient;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import org.apache.log4j.Logger;
@@ -9,6 +11,7 @@ import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.recipes.lock.ProtocolSupport;
 import org.apache.zookeeper.recipes.lock.ZooKeeperOperation;
@@ -29,46 +32,78 @@ public class PathChildWatcher extends ProtocolSupport {
     	private final Semaphore semaphore=new Semaphore(1);
 		private EventType eventType;
 		private String eventPath;
-    	private List<String> prevData;
+		private Map<String, List<String>> prevDataMap = new HashMap<String, List<String>>();
     	public void process(WatchedEvent event)  {
 			eventType = event.getType();
 			eventPath = event.getPath();
 			log.debug("getChildren event =>"+event);
-			if (eventType == EventType.NodeChildrenChanged || eventType== EventType.NodeDataChanged)
+			if (event.getType() == Event.EventType.None) {
+				if (event.getState() == KeeperState.SyncConnected) {
+					semaphore.release();
+				}
+			}else if (eventType == EventType.NodeChildrenChanged || eventType== EventType.NodeDataChanged )
     			semaphore.release();
     	}
     	public Boolean execute() throws KeeperException, InterruptedException {
-    				while (true) {
-    					semaphore.acquire();
-    					List<String> children = null;
-    					
-    					try{
-    						if (eventPath==null){
-    							System.out.println("path change watcher=" + path);
-    							children = zooKeeper.getChildren(path, this);
-    						}else{
-    							System.out.println("path change watcher=" + path);
-    							children = zooKeeper.getChildren(eventPath, this);
-    							//create
-    							if ((prevData == null && children!=null && children.size()>0) ||
-    	    							(prevData != null && children!=null && children.size()>prevData.size())){
-    								log.debug("path change add watcher=" + eventPath);
-    	    						List<String> arry = new ArrayList<String>(); 
-    	    						arry.addAll(children);
-    	    						arry.removeAll(prevData);    	    						
-    	    						zooKeeper.getChildren(eventPath+"/"+arry.get(0), this);   						
-    	    					}
-    	    					if (eventType == EventType.NodeChildrenChanged){
-    	    						visitor.onNodeChildrenChanged(eventPath, children);
-    	    						
-    	    					}   							
-    						}
-    						prevData = children;
-    					}catch(NoNodeException e){    						
-    					}
+			while (true) {
+				semaphore.acquire();
+				List<String> children = null;
 
-    					
-    				}
+				if (eventPath == null) {
+					if(prevDataMap.isEmpty()){
+						System.out.println("path change watcher=" + path);
+						try {
+							children = zooKeeper.getChildren(path, this);
+						} catch (NoNodeException e) {
+						}
+						prevDataMap.put(path, children);
+					}else{
+						for(String recoveryPath: prevDataMap.keySet()){
+							try {
+								System.out.println("path change watcher=" + recoveryPath);
+								children = zooKeeper.getChildren(recoveryPath, this);
+							} catch (NoNodeException e) {
+							}	
+							prevDataMap.put(recoveryPath, children);
+						}
+					}
+					
+				} else {
+					System.out.println("path change watcher=" + eventPath);
+					int newcount = 0;
+					int precount = 0;
+					try {
+						children = zookeeper.getChildren(eventPath, this);
+						if (children != null)
+							newcount = children.size();
+					} catch (NoNodeException e) {
+					}
+					List<String> prevData = prevDataMap.get(eventPath);
+					if (prevData != null)
+						precount = 0;
+					// creates a child under the node and add a new watcher
+					if (newcount > precount) {
+						log.debug("path change add watcher=" + eventPath);
+						List<String> arry = new ArrayList<String>();
+						arry.addAll(children);
+						arry.removeAll(prevData);
+						List<String> newchildren = null;
+						for (String childnode : arry) {
+							try {
+								newchildren = zookeeper.getChildren(eventPath
+										+ "/" + childnode, this);
+							} catch (NoNodeException e) {
+							}
+							if (newchildren != null)
+								prevDataMap.put(eventPath + "/" + childnode, newchildren);
+						}
+					}
+					prevDataMap.put(eventPath, children);
+					if (eventType == EventType.NodeChildrenChanged) {
+						visitor.onNodeChildrenChanged(eventPath, children);
+					}
+				}
+			}
     	}
     };
     public void watch() {

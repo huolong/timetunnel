@@ -1,7 +1,5 @@
 package com.taobao.timetunnel2.router.loadbalance;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,7 +9,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -27,9 +24,11 @@ import com.taobao.timetunnel2.router.common.RouterConsts;
 import com.taobao.timetunnel2.router.common.Util;
 import com.taobao.timetunnel2.router.common.ValidationException;
 import com.taobao.timetunnel2.router.exception.ServiceException;
+import com.taobao.timetunnel2.router.service.ServiceEngine;
 import com.taobao.timetunnel2.router.zkclient.Visitor;
 import com.taobao.timetunnel2.router.zkclient.ZooKeeperClientPool;
 import com.taobao.timetunnel2.router.zkclient.ZooKeeperMonitor;
+import com.taobao.timetunnel2.router.zkclient.ZooKeeperMonitor.WatchType;
 import com.taobao.timetunnel2.router.zkclient.ZookeeperProperties;
 import com.taobao.timetunnel2.router.zkclient.ZookeeperService;
 import com.taobao.timetunnel2.router.zkclient.ZookeeperServiceAgent;
@@ -56,11 +55,12 @@ public class RouterContext implements Context, Visitor{
 	}
 	
 	private void init() throws ServiceException{
-		loadConf();
-		Map<String, String> watchpaths = new HashMap<String, String>();
-		watchpaths.put(ParamsKey.ZNode.topic, RouterConsts.WATCH_MODE_SETDATA);
-		watchpaths.put(ParamsKey.ZNode.user, RouterConsts.WATCH_MODE_SETDATA);
-		watchpaths.put(ParamsKey.ZNode.broker, RouterConsts.WATCH_MODE_CHILDCHANGE);
+		//loadConf();
+		appParam = Util.loadConf();
+		Map<String, WatchType> watchpaths = new HashMap<String, WatchType>();
+		watchpaths.put(ParamsKey.ZNode.topic, WatchType.DataChanged);
+		watchpaths.put(ParamsKey.ZNode.user, WatchType.DataChanged);
+		watchpaths.put(ParamsKey.ZNode.broker, WatchType.ChildrenChanged);
 		ZookeeperProperties zprop = new ZookeeperProperties(appParam);
 		monitor = new ZookeeperServiceAgent(zprop, watchpaths, this);
 		s_policy = LoadBalancerFactory.getLoadBalancerPolicy(appParam
@@ -71,7 +71,7 @@ public class RouterContext implements Context, Visitor{
 		sync();
 	}
 	
-	private void loadConf() throws ServiceException{
+/*	private void loadConf() throws ServiceException{
 		appParam = new Properties();
 		try {
 			appParam.load(this.getClass().getClassLoader().getResourceAsStream(RouterConsts.ROUTER_PATH));
@@ -85,12 +85,18 @@ public class RouterContext implements Context, Visitor{
 					"There are some error in reading from the router config file.[%s]",
 					e.getCause()));
 		}
-	}
+	}*/
 
 	@Override
 	public void sync(){
-		syncTopic();
-		syncAuthInfo();
+		boolean exitFlag = false;
+		try {
+			ServiceEngine srv = ServiceEngine.getInstance();
+			exitFlag = !srv.isStarted(); 			
+		} catch (ServiceException e) {
+		}	
+		syncTopic(exitFlag);
+		syncAuthInfo(exitFlag);		
 	}
 	
 	public List<String> getSessionStats(String topic){		
@@ -119,11 +125,10 @@ public class RouterContext implements Context, Visitor{
 					StringBuilder json = new StringBuilder(512);
 					json.append("{\"type\":\"").append(clientType)
 						.append("\", \"timeout\":\"").append(timeout);
-						//.append("\", \"token\":\"").append(sessionId);
-						
+					
 					if ("SUB".equalsIgnoreCase(clientType)){
 						String size = Util.getStrParam(Constants.RECVWINSIZE, prop.get(Constants.RECVWINSIZE));
-						json.append("\", \"subscriber\":\"").append(userId)
+						json.append("\", \"subscriber\":\"").append(topic+"-"+userId)
 						    .append("\", \"receiveWindowSize\":\"").append(size);
 						prefix="s"; 					
 					}else
@@ -151,16 +156,16 @@ public class RouterContext implements Context, Visitor{
 							}
 						}
 					}
-					SetDataCallBack cb = new SetDataCallBack();
-					CountDownLatch signal = new CountDownLatch(1);
+					/*SetDataCallBack cb = new SetDataCallBack();
+					CountDownLatch signal = new CountDownLatch(1);*/
 					String sessionId = Util.getMD5(String.valueOf(System.nanoTime())+clientId);
 					token = ParamsKey.ZNode.session+"/"+clientId+"/"+prefix+sessionId;
-					zks.setData(token, json.toString(), cb, signal);
-					try {
+					zks.setData(token, json.toString());
+					/*try {
 						signal.await(2, TimeUnit.SECONDS);
 					} catch (InterruptedException e) {
 						return null;
-					}
+					}*/
 									
 				}catch(ValidationException e){
 					throw new ServiceException(e);				
@@ -202,6 +207,7 @@ public class RouterContext implements Context, Visitor{
 		routerMap = null;
 		if(zkpool!=null)
 			zkpool.close();
+		context = null;
 	}
 	
 	class SetDataCallBack implements StatCallback{
@@ -229,7 +235,7 @@ public class RouterContext implements Context, Visitor{
 		}
 	}
 	
-	public void syncTopic(){	
+	public void syncTopic(boolean exitFlag){	
 		if (synced.compareAndSet(false, true)) {
 			try {
 				ZookeeperService zks = zkpool.getZooKeeperClient();
@@ -238,61 +244,62 @@ public class RouterContext implements Context, Visitor{
 					topics = zks.getChildren(ParamsKey.ZNode.topic);
 				} catch (Exception e) {
 					log.error(e.toString());
+					if (exitFlag)
+						System.exit(-1);
 				}
 				routerMap.clear();
 				if (topics != null && topics.size() > 0) {
 					Set<String> newBrokers = new HashSet<String>();
 					for (String topic : topics) {
-						//try {
-							String grptemp = zks.getData(ParamsKey.ZNode.topic
-									+ "/" + topic);
-							String group = grptemp.substring(
-									grptemp.indexOf("\"group\":") + 9,
-									grptemp.indexOf("}") - 1);
-							List<String> clusters = zks.getChildren(ParamsKey.ZNode.broker + "/"+ group);
-							if(clusters!=null && clusters.size()>0){
-							List<BrokerUrl> srvlists = new ArrayList<BrokerUrl>();
-							for (String srvname : clusters) {
-								try {
-									String brokerurl = zks
-											.getData(ParamsKey.ZNode.broker + "/"
-													+ group + "/" + srvname);
-									BrokerUrl broker = (BrokerUrl) Util.fromJson(
-											brokerurl, BrokerUrl.class);
-									broker.setId(srvname);
-									srvlists.add(broker);
-									newBrokers.add(srvname);
-									log.info(String.format("topic=%s,srvname=%s", topic, srvname));
-								} catch (Exception e) {
-									e.printStackTrace();
-									log.error(e.toString());
+						String grptemp = zks.getData(ParamsKey.ZNode.topic + "/" + topic);
+						try{						
+							if(grptemp!=null){							
+								String group = grptemp.substring(
+										grptemp.indexOf("\"group\":") + 9,
+										grptemp.indexOf("}") - 1);
+								List<String> clusters = zks.getChildren(ParamsKey.ZNode.broker + "/"+ group);
+								if(clusters!=null && clusters.size()>0){
+									List<BrokerUrl> srvlists = new ArrayList<BrokerUrl>();
+									for (String srvname : clusters) {
+									try {
+										String brokerurl = zks.getData(ParamsKey.ZNode.broker + "/"
+														+ group + "/" + srvname);
+										BrokerUrl broker = (BrokerUrl) Util.fromJson(
+												brokerurl, BrokerUrl.class);
+										broker.setId(srvname);
+										srvlists.add(broker);
+										newBrokers.add(srvname);
+										log.info(String.format("topic=%s,srvname=%s", topic, srvname));
+									} catch (Exception e) {
+										log.error(String.format("topic=%s,srvname=%s,%s", topic, srvname, e.toString()));
+									}
 								}
+								if (srvlists.size() > 0)
+									routerMap.update(topic, srvlists);
+								}								
 							}
-							if (srvlists.size() > 0)
-								routerMap.update(topic, srvlists);
-							}/*else{
-								log.error("topic[" + topic + "]:" + ParamsKey.ZNode.broker + "/"+ group);
-							}*/
-						/*} catch (Exception e) {
-							log.error("topic[" + topic + "]:" + e.toString());
-						}*/
+						} catch (Exception e) {
+							log.error("topic[" + topic +"/" + grptemp + "]:" + e.toString());
+						}
 					}
 					routerMap.changeClientStatus(newBrokers);
 				} else {
 					log.error("The router Server doesn't provide available service because of no topic znode at \""
-							+ ParamsKey.ZNode.topic + "\".");
+							+ ParamsKey.ZNode.topic + "\".");									
+					if (exitFlag)
+						System.exit(-1);					
 				}
 			} catch (Exception e) {
-				log.error(e.toString());
+				log.error(e.toString());				
 			} finally {
 				synced.set(false);
 			}
 		}
 	}
 	
-	private void syncAuthInfo(){
+	private void syncAuthInfo(boolean exitFlag){		
 		if (synced.compareAndSet(false, true)) {
-			try {
+			try {				
 				ZookeeperService zks = zkpool.getZooKeeperClient();
 				List<String> users = zks.getChildren(ParamsKey.ZNode.user);					
 				authMap.clear();
@@ -305,14 +312,20 @@ public class RouterContext implements Context, Visitor{
 							authMap.put(user, userinfo.getPassword());
 						} catch (Exception e) {
 							log.error(e.toString());
+							if (exitFlag)
+								System.exit(-1);
 						}
 					}
 				}else{
 					log.error("The router Server doesn't provide available service because of no user znode at \""
 							+ ParamsKey.ZNode.user + "\".");
+					if (exitFlag)
+						System.exit(-1);
 				}
 			} catch (Exception e) {
 				log.error(e.toString());
+				if (exitFlag)
+					System.exit(-1);
 			} finally {
 				synced.set(false);
 			}
@@ -321,16 +334,16 @@ public class RouterContext implements Context, Visitor{
 
 	@Override
 	public void onNodeChildrenChanged(String path, List<String> children) {
-		syncTopic();	
+		syncTopic(false);	
 	}
 
 	@Override
 	public void onNodeCreated(String path) {		
 		if(path!=null){
 			if(ParamsKey.ZNode.user.equals(path))
-				syncAuthInfo();	
+				syncAuthInfo(false);	
 			else
-				syncTopic();
+				syncTopic(false);
 		}
 	}
 
@@ -338,9 +351,9 @@ public class RouterContext implements Context, Visitor{
 	public void onNodeDataChanged(String path) {
 		if(path!=null){
 			 if(ParamsKey.ZNode.user.equals(path))
-				 syncAuthInfo();	
+				 syncAuthInfo(false);	
 			 else
-				 syncTopic();	
+				 syncTopic(false);	
 		}
 	}
 
@@ -348,9 +361,9 @@ public class RouterContext implements Context, Visitor{
 	public void onNodeDeleted(String path) {
 		if(path!=null){
 			if(ParamsKey.ZNode.user.equals(path))
-				syncAuthInfo();	
+				syncAuthInfo(false);	
 			else
-				syncTopic();
+				syncTopic(false);
 		}
 		
 	}

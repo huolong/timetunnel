@@ -3,14 +3,12 @@ package com.taobao.timetunnel2.router.zkclient;
 import java.util.List;
 import java.util.Map;
 
-import com.taobao.timetunnel2.router.common.RouterConsts;
-
 public class ZookeeperServiceAgent extends ZookeeperRecyclableService implements ZooKeeperMonitor{
 
-	private Map<String,String> watchpaths = null;
+	private Map<String,WatchType> watchpaths = null;
 	private Visitor visitor;
 	
-	public ZookeeperServiceAgent(ZookeeperProperties zProps, Map<String,String> paths, Visitor visitor) {
+	public ZookeeperServiceAgent(ZookeeperProperties zProps, Map<String,WatchType> paths, Visitor visitor) {
 		super(zProps.getZkSrvList(), zProps.getZkTimeout());	
 		this.connect();
 		this.watchpaths = paths;
@@ -19,7 +17,7 @@ public class ZookeeperServiceAgent extends ZookeeperRecyclableService implements
 	@Override
 	public void doServe() {
 		for(String key: watchpaths.keySet()){
-			if(watchpaths.get(key).equalsIgnoreCase(RouterConsts.WATCH_MODE_CHILDCHANGE)){
+			if(WatchType.ChildrenChanged.equals(watchpaths.get(key))){
 				List<String> childrenpaths = getZooKeeperClient().listPathChildren(key);
 				if (childrenpaths != null && childrenpaths.size() > 0) {
 					for (String childpath : childrenpaths) {

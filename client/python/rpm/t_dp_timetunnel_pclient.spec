@@ -3,7 +3,7 @@
 # http://www.rpm.org/max-rpm/ch-rpm-inside.html              #
 ##############################################################
 Name: t_dp_timetunnel_pclient
-Version: 0.1.0
+Version: 0.2.0
 # if you want get version number from outside, use like this
 #Version: %(cat version.txt)
 Release: 1
@@ -13,7 +13,7 @@ Release: 1
 Summary: timetunnel python client rpm package
 # this is the svn URL of current dir
 URL: %{_svn_path}
-Group: TimeTunnel/python_client
+Group: TimeTunnel/client/python
 License: Commercial
 
 # uncomment below, if you want rpmbuild don't strip files
@@ -31,7 +31,7 @@ BuildArch: noarch
 # if you want publish current svn URL or Revision use these macros
 %{_svn_path}
 %{_svn_revision}
-timetunnel python_shareclient rpm package version 0.1.0
+timetunnel pcient rpm package version 0.2.0
 
 %debug_package
 # support debuginfo package, to reduce runtime package size

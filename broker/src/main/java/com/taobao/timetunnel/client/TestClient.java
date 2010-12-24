@@ -6,7 +6,6 @@ import java.util.concurrent.Callable;
 
 import com.taobao.timetunnel.client.BufferFinance.Accountant;
 import com.taobao.timetunnel.client.BufferFinance.Cashier;
-import com.taobao.timetunnel.thrift.gen.Failure;
 import com.taobao.timetunnel.zookeeper.ZooKeeperServerForTest;
 import com.taobao.util.Race;
 
@@ -122,7 +121,7 @@ public final class TestClient {
 
   private static final NoneTestRuntimeReport noneTestRuntimeReport = new NoneTestRuntimeReport();
 
-  private static int retry = 1000;
+  private static int retry = 0;
 
   /**
    * {@link Command}
@@ -176,7 +175,7 @@ public final class TestClient {
             parallelPubs(factory, token, category, num, report, finance);
           }
         }.call();
-        System.exit(0); // run shutdown hooks
+        
       }
     },
     subscriber {
@@ -189,7 +188,7 @@ public final class TestClient {
             parallelSubs(factory, token, category, num, report, finance);
           }
         }.call();
-        System.exit(0); // run shutdown hooks
+        
       }
     };
 
@@ -241,7 +240,7 @@ public final class TestClient {
    */
   private static final class NoneTestRuntimeReport implements TestRuntimeReport {
     @Override
-    public Counter counterOf(final Failure e) {
+    public Counter counterOf(final Exception e) {
       return counter;
     }
 

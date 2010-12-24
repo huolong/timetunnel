@@ -24,6 +24,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 
 import com.taobao.timetunnel.InjectMocksSupport;
+import com.taobao.timetunnel.InvalidSubscriberException;
 import com.taobao.timetunnel.message.ByteBufferMessageFactory;
 import com.taobao.timetunnel.message.Category;
 import com.taobao.timetunnel.message.MessageFactory;
@@ -47,6 +48,7 @@ public class MessageTunnelTest extends InjectMocksSupport {
     doReturn("log").when(category).name();
     doReturn("log").when(category).toString();
     doReturn(true).when(category).isMessageUselessReadBy(new HashSet<String>(Arrays.asList("dw")));
+    doReturn(true).when(category).isInvaildSubscriber("xx");
   }
 
   @Test
@@ -89,6 +91,11 @@ public class MessageTunnelTest extends InjectMocksSupport {
     Collections.sort(ints);
     assertThat(ints.size(), is(TIMES));
     assertThat(ints.get(TIMES - 1), is(TIMES - 1));
+  }
+  
+  @Test(expected=InvalidSubscriberException.class)
+  public void shouldExpectInvaildSubscriber() throws Exception {
+    tunnels.tunnel(category).ackAndGet(sub("sub", 1, "xx", 3));
   }
 
   @After

@@ -10,6 +10,7 @@ import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransportException;
 
 import com.taobao.timetunnel.Disposable;
+import com.taobao.timetunnel.ReliableServiceClientException;
 import com.taobao.timetunnel.message.Category;
 import com.taobao.timetunnel.reliable.ReliableService;
 import com.taobao.timetunnel.session.Session;

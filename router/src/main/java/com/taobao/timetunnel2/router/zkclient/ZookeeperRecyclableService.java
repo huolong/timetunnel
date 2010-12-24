@@ -83,8 +83,17 @@ public abstract class ZookeeperRecyclableService implements Watcher{
 	}
 	
 	public void reconnect() {
-		diconnect();
-		connect();
+		try {
+			zooKeeper = new ZooKeeper(serverList, sessionTimeout, this);
+			zooKeeperClient.reconnect(zooKeeper);
+			connectedSignal.await();
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to connect to zookeeper cluster "
+					+ serverList, e);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+		
 	}
 
 	protected void cleanup() {		

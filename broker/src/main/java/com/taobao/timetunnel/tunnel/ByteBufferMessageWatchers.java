@@ -36,11 +36,7 @@ final class ByteBufferMessageWatchers implements Disposable {
   }
 
   public Watcher<ByteBuffer> watcher(final Session session) {
-    try {
-      return watchers.getOrCreateIfNotExist(session);
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
-    }
+    return watchers.uncheckedGetOrCreateIfNoExist(session);
   }
 
   private static void dump(final Queue<Message<ByteBuffer>> queue,

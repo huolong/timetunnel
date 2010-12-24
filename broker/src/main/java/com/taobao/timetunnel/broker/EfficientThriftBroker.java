@@ -7,12 +7,11 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import org.apache.thrift.TException;
-import org.apache.thrift.TProcessor;
 import org.apache.thrift.server.TServer;
-import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.taobao.timetunnel.TooBigMessageException;
 import com.taobao.timetunnel.center.Center;
 import com.taobao.timetunnel.message.ByteBufferMessageCompactor;
 import com.taobao.timetunnel.message.Category;
@@ -20,9 +19,11 @@ import com.taobao.timetunnel.message.MessageFactory;
 import com.taobao.timetunnel.session.Session;
 import com.taobao.timetunnel.thrift.gen.ExternalService;
 import com.taobao.timetunnel.thrift.gen.ExternalService.Iface;
+import com.taobao.timetunnel.thrift.gen.ExternalService.Processor;
 import com.taobao.timetunnel.thrift.gen.Failure;
 import com.taobao.timetunnel.tunnel.ByteBufferMessageTunnels;
 import com.taobao.timetunnel.tunnel.TrimListener;
+import com.taobao.util.DirectoryCleaner;
 import com.taobao.util.JsonUtils;
 import com.taobao.util.MemoryMonitor;
 
@@ -35,17 +36,6 @@ import com.taobao.util.MemoryMonitor;
  */
 public final class EfficientThriftBroker extends ThriftBroker<ByteBuffer> {
 
-  /**
-   * 
-   * @param center
-   * @param host of server.
-   * @param port of server provide external service.
-   * @param syncPoint
-   * @param monitor
-   * @param home
-   * @param maxMessageSize
-   * @throws TTransportException
-   */
   public EfficientThriftBroker(final Center center,
                                final String host,
                                final int port,
@@ -53,20 +43,24 @@ public final class EfficientThriftBroker extends ThriftBroker<ByteBuffer> {
                                final int syncPoint,
                                final MemoryMonitor monitor,
                                final File home,
-                               final int maxMessageSize) throws TTransportException {
+                               final int maxMessageSize,
+                               final int chunkCapacity,
+                               final int chunkBuffer) {
     super(center, group);
     this.maxMessageSize = maxMessageSize;
     info = new Info(host, port);
-    processor = new ExternalService.Processor(new External());
-    server = newThriftServer(info.host, info.external, workThread, maxReadBufferBytes, processor);
+    // TODO remove clean code if need to recovery
+    DirectoryCleaner.clean(home);
+    LOGGER.info("clean directory {}.", home);
+
     final MessageFactory<ByteBuffer> messageFactory =
-      new ByteBufferMessageCompactor(monitor, new File(home, "tunnels"), maxMessageSize);
+      new ByteBufferMessageCompactor(monitor, new File(home, "tunnels"), chunkCapacity, chunkBuffer);
     tunnels = new ByteBufferMessageTunnels(listener, syncPoint, messageFactory);
   }
 
   @Override
   public void doStop() {
-    server.stop();
+    if (server != null) server.stop();
     tunnels.dispose();
   }
 
@@ -74,7 +68,13 @@ public final class EfficientThriftBroker extends ThriftBroker<ByteBuffer> {
   protected void doStart() {
     recoveryFromLast();
     Thread.currentThread().setName("broker-external");
-    server.serve();
+    final Processor processor = new ExternalService.Processor(new External());
+    try {
+      server = newThriftServer(info.host, info.external, workThread, maxReadBufferBytes, processor);
+      server.serve();
+    } catch (final Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -95,7 +95,6 @@ public final class EfficientThriftBroker extends ThriftBroker<ByteBuffer> {
 
   private void recoveryFromLast() {
     // TODO Auto-generated method stub
-
   }
 
   private final TrimListener listener = new TrimListener() {
@@ -106,13 +105,11 @@ public final class EfficientThriftBroker extends ThriftBroker<ByteBuffer> {
     }
   };
 
-
   public static final Logger LOGGER = LoggerFactory.getLogger(EfficientThriftBroker.class);
 
   private final Info info;
-  private final TServer server;
+  private TServer server;
   private final int maxMessageSize;
-  private final TProcessor processor;
   private final ByteBufferMessageTunnels tunnels;
 
   /**

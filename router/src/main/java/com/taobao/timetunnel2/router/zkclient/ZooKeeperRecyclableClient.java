@@ -13,12 +13,10 @@ import org.apache.zookeeper.recipes.lock.WriteLock;
 
 import com.taobao.timetunnel2.cluster.util.StringUtil;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathChildDeleter;
-import com.taobao.timetunnel2.cluster.zookeeper.operation.PathChildrenListener;
+import com.taobao.timetunnel2.cluster.zookeeper.operation.PathChildrenLister;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathCreator;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathDataGetter;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathDataSetter;
-import com.taobao.timetunnel2.cluster.zookeeper.operation.PathDataWatcher;
-import com.taobao.timetunnel2.cluster.zookeeper.operation.PathDataWatcher.DataVisitor;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathDeleter;
 import com.taobao.timetunnel2.cluster.zookeeper.operation.PathExistChecker;
 
@@ -28,9 +26,9 @@ public class ZooKeeperRecyclableClient {
 	}
 	
 	private ZooKeeper zooKeeper;
-	//private Thread watchThread;
-	private Map<String, Thread> watchThreads = new HashMap<String, Thread>();
-	private Map<String, Object> vistors = new HashMap<String, Object>();
+	private Map<Thread, String> watchPaths = new HashMap<Thread, String>();
+	private Map<Thread, Visitor> visitors = new HashMap<Thread, Visitor>();
+	
 
 	public ZooKeeperRecyclableClient(ZooKeeper zooKeeper) {
 		this.zooKeeper = zooKeeper;
@@ -87,7 +85,7 @@ public class ZooKeeperRecyclableClient {
 	public List<String> listPathChildren(String path) {
 		List<String> children = null;
 		try{
-			children = new PathChildrenListener(zooKeeper, path).getChildren();
+			children = new PathChildrenLister(zooKeeper, path).getChildren();
 		}catch(Exception e){			
 		}		
 		return children;
@@ -99,30 +97,21 @@ public class ZooKeeperRecyclableClient {
 				new PathChildWatcher(zooKeeper, path, visitor).watch();
 			}
 		};
-		vistors.put(path, visitor);
-		watchThreads.put(path, watchThread);
+		watchPaths.put(watchThread, path);
+		visitors.put(watchThread, visitor);
+		watchThread.setName("watchPathChild:"+path);
 		watchThread.start();
 	}
 
-	public void watchPathData(final String path, final DataVisitor visitor) {
-		Thread watchThread = new Thread() {
-			public void run() {
-				new PathDataWatcher(zooKeeper, path, visitor).watch();
-			}
-		};		
-		vistors.put(path, visitor);
-		watchThreads.put(path, watchThread);
-		watchThread.start();
-	}
-	
 	public void watchPathExist(final String path, final Visitor visitor) {
 		Thread watchThread = new Thread() {
 			public void run() {
 				new PathExistWatcher(zooKeeper, path, visitor).watch();
 			}
 		};
-		vistors.put(path, visitor);
-		watchThreads.put(path, watchThread);
+		watchPaths.put(watchThread, path);		
+		visitors.put(watchThread, visitor);
+		watchThread.setName("watchPathExist:"+path);
 		watchThread.start();
 	}
 
@@ -187,8 +176,8 @@ public class ZooKeeperRecyclableClient {
 		try {
 			/*if (watchThread != null)
 				watchThread.interrupt();*/
-			if(watchThreads!=null){
-				for(Thread watchThread: watchThreads.values()){
+			if(watchPaths!=null){
+				for(Thread watchThread: watchPaths.keySet()){
 					if (watchThread!=null)
 						watchThread.interrupt();
 				}
@@ -203,15 +192,19 @@ public class ZooKeeperRecyclableClient {
 		try {
 			getZooKeeper().close();
 			this.zooKeeper = zooKeeper;			
-			if(watchThreads!=null){
-				for(Entry<String, Thread> entry: watchThreads.entrySet()){
-					String path = entry.getKey();
-					Thread watchThread = entry.getValue();
+			if(watchPaths!=null){
+				for(Entry<Thread, String> entry: watchPaths.entrySet()){
+					Thread watchThread = entry.getKey();
+					String path = entry.getValue();					
 					if (watchThread!=null){
+						String thread = watchThread.getName();						
 						watchThread.interrupt();	
-						Object visitor = vistors.get(path);
-						if (visitor!=null){
-							watchPathExist(path, (Visitor)visitor);	
+						Visitor visitor = visitors.get(path);
+						if (visitor!=null && thread!=null){
+							if(thread.indexOf("watchPathExist")>-1)
+								watchPathExist(path, visitor);
+							else
+								watchPathChild(path, visitor);
 						}
 					}
 				}

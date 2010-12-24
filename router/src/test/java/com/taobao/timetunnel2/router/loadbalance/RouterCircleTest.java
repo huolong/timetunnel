@@ -7,13 +7,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import junit.framework.TestCase;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.taobao.timetunnel2.router.biz.BrokerUrl;
 
-public class RouterCircleTest {
+public class RouterCircleTest extends TestCase {
 	
 	@Before
 	public void setUp() throws Exception {

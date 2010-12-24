@@ -12,11 +12,11 @@ public interface ZookeeperService {
 
 	public String getData(String path);
 	
-	public void getData(String path, DataCallback cb, Object ctx);
+	public String getData(String path, DataCallback cb, Object ctx);
 
 	public List<String> getChildren(String path) throws NoNodeException;
 	
-	public void getChildren(String path, ChildrenCallback cb, Object ctx) throws NoNodeException;
+	public List<String> getChildren(String path, ChildrenCallback cb, Object ctx) throws NoNodeException;
 
 	public void setData(String path, String value);
 	

@@ -54,19 +54,18 @@ public class ReliableThriftBrokerTest implements ZooKeeperListener {
   @Test
   public void shouldGetRightMessage() throws Exception {
     final int times = 10;
-    final String host = "localhost";
-    final String category = "chat";
-    final int external = 9999;
 
     final ZookeeperCenter center = new ZookeeperCenter(host + ":8888", 2000, 60);
     final ThriftBroker<ByteBuffer> thriftBroker =
       new ReliableThriftBroker(center,
                                host,
-                               9999,
-                               9998,
-                               "group",
-                               100,
-                               4096,
+                               external,
+                               internal,
+                               group,
+                               syncPoint,
+                               maxMessageSize,
+                               chunkCapacity,
+                               chunkBuffer,
                                monitor,
                                freezer("freezers"));
     start(thriftBroker);
@@ -99,9 +98,11 @@ public class ReliableThriftBrokerTest implements ZooKeeperListener {
                                "localhost",
                                9900,
                                9910,
-                               "group",
-                               100,
-                               4096,
+                               group,
+                               syncPoint,
+                               maxMessageSize,
+                               chunkCapacity,
+                               chunkBuffer,
                                monitor,
                                freezer("freezers0"));
 
@@ -110,9 +111,11 @@ public class ReliableThriftBrokerTest implements ZooKeeperListener {
                                "localhost",
                                9901,
                                9911,
-                               "group",
-                               100,
-                               4096,
+                               group,
+                               syncPoint,
+                               maxMessageSize,
+                               chunkCapacity,
+                               chunkBuffer,
                                monitor,
                                freezer("freezers1"));
     start(thriftBroker0);
@@ -197,6 +200,17 @@ public class ReliableThriftBrokerTest implements ZooKeeperListener {
       }
     }, "zookeeper-server").start();
   }
+
+  final int external = 9999;
+  final int chunkCapacity = 1 << 20;
+  final int chunkBuffer = 1 << 15;
+  final int maxMessageSize = 4096;
+  final int syncPoint = 100;
+  final int internal = 9998;
+
+  final String group = "group";
+  final String host = "localhost";
+  final String category = "chat";
 
   private final MemoryMonitor monitor = new MemoryMonitor(MemoryMonitor.max() - 10240,
                                                           MemoryMonitor.max() - 1);

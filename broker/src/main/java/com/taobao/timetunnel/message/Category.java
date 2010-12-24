@@ -9,6 +9,8 @@ import java.util.Set;
  * 
  */
 public interface Category {
+  boolean isInvaildSubscriber(String key);
+
   boolean isMessageExpiredAfter(long created);
 
   boolean isMessageUselessReadBy(Set<String> readers);

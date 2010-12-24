@@ -30,21 +30,25 @@ public class CoordinatorTest {
     final List<Future<Integer>> futures =
       Race.run(new Person(coordinator.track("0")),
                new Person(coordinator.track("1")),
-               new Callable<Integer>() {
-
-                 @Override
-                 public Integer call() throws Exception {
-                   Thread.sleep(100L);
-                   running.compareAndSet(true, false);
-                   return 0;
-                 }
-               });
+               new DelayHaltCaller());
     final int steps0 = futures.get(0).get();
     final int steps1 = futures.get(1).get();
     assertThat(Math.abs(steps1 - steps0), lessThanOrEqualTo(value));
   }
 
   public final AtomicBoolean running = new AtomicBoolean(true);
+
+  /**
+   * {@link DelayHaltCaller}
+   */
+  private final class DelayHaltCaller implements Callable<Integer> {
+    @Override
+    public Integer call() throws Exception {
+      Thread.sleep(100L);
+      running.compareAndSet(true, false);
+      return 0;
+    }
+  }
 
   /**
    * {@link Person}

@@ -1,11 +1,15 @@
 package com.taobao.timetunnel2.router.common;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Properties;
 
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.taobao.timetunnel2.router.exception.ServiceException;
 
 public class Util {
 	private static final Logger log = Logger.getLogger(Util.class);
@@ -114,4 +118,21 @@ public class Util {
     		return defaultvalue;
     	}
     }
+    
+    public static Properties loadConf() throws ServiceException{
+    	Properties appParam = new Properties();
+		try {
+			appParam.load(Util.class.getClassLoader().getResourceAsStream(RouterConsts.ROUTER_PATH));
+		} catch (FileNotFoundException e) {
+			throw new ServiceException(String.format(
+					"The router-config file does not exist.[%s]",
+					RouterConsts.ROUTER_PATH));
+		} catch (IOException e) {
+			log.error(e);
+			throw new ServiceException(String.format(
+					"There are some error in reading from the router config file.[%s]",
+					e.getCause()));
+		}
+		return appParam;
+	}
 }

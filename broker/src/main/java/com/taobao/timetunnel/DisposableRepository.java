@@ -20,15 +20,18 @@ public abstract class DisposableRepository<K, T extends Disposable> extends Repo
 
   @Override
   public void dispose() {
-    try {
-      for (final FutureTask<T> futureTask : map.values()) {
+    boolean interrupted = false;
+    for (final FutureTask<T> futureTask : map.values()) {
+      try {
         futureTask.get().dispose();
+      } catch (final InterruptedException e) {
+        interrupted = true;
+      } catch (final Exception e) {
+        continue;
       }
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
-    } finally {
-      map.clear();
     }
+    map.clear();
+    if (interrupted) Thread.currentThread().interrupt();
   }
 
 }

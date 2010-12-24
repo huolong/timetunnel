@@ -15,12 +15,12 @@ import com.taobao.timetunnel.message.Category;
  */
 public final class ByteBufferFreezers extends DisposableRepository<Category, Freezer<ByteBuffer>> {
 
-  public ByteBufferFreezers(final File home, final int maxMessageSize) {
+  public ByteBufferFreezers(final File home, final int chunkCapacity, final int chunkBuffer) {
     super(new Factory<Category, Freezer<ByteBuffer>>() {
 
       @Override
       public Freezer<ByteBuffer> newInstance(final Category category) {
-        return new NByteBufferFreezer(new File(home, category.name()), maxMessageSize);
+        return new ByteBufferFreezer(new File(home, category.name()), chunkCapacity, chunkBuffer);
       }
     });
   }

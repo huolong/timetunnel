@@ -2,6 +2,8 @@ package com.taobao.timetunnel2.router.service;
 
 import java.util.Properties;
 
+import junit.framework.TestCase;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -9,7 +11,7 @@ import org.junit.Test;
 import com.taobao.timetunnel2.router.common.ParamsKey;
 import com.taobao.timetunnel2.router.loadbalance.RouterContext;
 
-public class ServiceEngineTest {
+public class ServiceEngineTest extends TestCase{
 	private  ServiceEngine srv;
 	@Before
 	public void setUp() throws Exception {

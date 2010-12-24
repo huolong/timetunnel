@@ -6,12 +6,15 @@ import java.io.File;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 
+import com.taobao.timetunnel.broker.EfficientThriftBroker;
 import com.taobao.timetunnel.broker.ReliableThriftBroker;
 import com.taobao.timetunnel.broker.ThriftBroker;
 import com.taobao.timetunnel.center.Center;
 import com.taobao.timetunnel.center.ZookeeperCenter;
 import com.taobao.util.MemoryMonitor;
 import com.taobao.util.PropertiesHelper;
+import com.taobao.util.SizeConverter;
+import com.taobao.util.PropertiesHelper.Converter;
 
 /**
  * {@link BrokerBootstrap}
@@ -63,6 +66,8 @@ public class BrokerBootstrap {
     return new MemoryMonitor(shortage, abundant);
   }
 
+  private static Converter<Integer> sizeConverter = new SizeConverter();
+
   private static ThriftBroker<ByteBuffer> createThriftBrokerWith(final PropertiesHelper helper) throws UnknownHostException {
     final File data = new File(helper.getString("broker.home", "."), "data");
     data.mkdirs();
@@ -70,17 +75,43 @@ public class BrokerBootstrap {
     final Center center = createCenterWith(helper);
     final MemoryMonitor monitor = createMonitorWith(helper);
 
-    final ThriftBroker<ByteBuffer> thriftBroker =
-      new ReliableThriftBroker(center,
-                               helper.getString("broker.host", getLocalHost().getHostName()),
-                               helper.getInt("external.port"),
-                               helper.getInt("internal.port"),
-                               helper.getString("broker.group"),
-                               helper.getInt("group.syncPoint", 200),
-                               helper.getInt("broker.maxMessageSize", 4096),
-                               monitor,
-                               data);
+    ThriftBroker<ByteBuffer> thriftBroker = null;
+    final String host = helper.getString("broker.host", getLocalHost().getHostName());
+    final int port = helper.getInt("external.port");
+    final String group = helper.getString("broker.group");
+    final int syncPoint = helper.getInt("group.syncPoint", 200);
+    final int maxMessageSize = helper.get(sizeConverter, "chunk.buffer", "4K");
 
+    int chunkCapacity = helper.get(sizeConverter, "chunk.capacity", "64M");
+    int chunkBuffer = helper.get(sizeConverter, "chunk.buffer", "32K");
+    if (helper.contains("internal.port")) {
+      thriftBroker =
+        new ReliableThriftBroker(center,
+                                 host,
+                                 port,
+                                 helper.getInt("internal.port"),
+                                 group,
+                                 syncPoint,
+                                 maxMessageSize,
+                                 chunkCapacity,
+                                 chunkBuffer,
+                                 monitor,
+                                 data);
+      System.out.println("Starting a reliable broker.");
+    } else {
+      thriftBroker =
+        new EfficientThriftBroker(center,
+                                  host,
+                                  port,
+                                  group,
+                                  syncPoint,
+                                  monitor,
+                                  data,
+                                  maxMessageSize,
+                                  chunkCapacity,
+                                  chunkBuffer);
+      System.out.println("Starting a efficient broker.");
+    }
     thriftBroker.setMaxReadBufferBytes(helper.getInt("broker.maxReadBufferBytes", Integer.MAX_VALUE));
     thriftBroker.setWorkThread(helper.getInt("broker.workThread", 5));
     return thriftBroker;

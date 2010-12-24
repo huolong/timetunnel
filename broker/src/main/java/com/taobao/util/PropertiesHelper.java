@@ -26,47 +26,52 @@ public final class PropertiesHelper {
     this.properties = properties;
   }
 
-  public <V> V get(final Converter<V> converter, final String key) {
-    final String value = properties.getProperty(key);
-    if (value == null) throw new IllegalArgumentException(key + " is missing.");
-    return converter.convert((properties.getProperty(key)));
+  public boolean contains(final Object key) {
+    return properties.containsKey(key);
   }
 
-  public <V> V get(final Converter<V> converter, final String key, final V defaultValue) {
-    if (!properties.containsKey(key)) return defaultValue;
-    return converter.convert((properties.getProperty(key)));
+  public <V> V get(final Converter<V> converter, final String key) {
+    final String value = properties.getProperty(key).trim();
+    if (value == null) throw new IllegalArgumentException(key + " is missing.");
+    return converter.convert(value);
+  }
+
+  public <V> V get(final Converter<V> converter, final String key, final String defaultValue) {
+    if (!properties.containsKey(key)) return converter.convert(defaultValue);
+    return converter.convert((properties.getProperty(key).trim()));
   }
 
   public boolean getBoolean(final String key) {
-    final String value = properties.getProperty(key);
+    final String value = properties.getProperty(key).trim();
     if (value == null) throw new IllegalArgumentException(key + " is missing.");
     return parseBoolean(value);
   }
 
   public boolean getBoolean(final String key, final boolean defaultValue) {
     if (!properties.containsKey(key)) return defaultValue;
-    return parseBoolean(properties.getProperty(key));
+    return parseBoolean(properties.getProperty(key).trim());
   }
 
   public int getInt(final String key) {
-    final String value = properties.getProperty(key);
+    final String value = properties.getProperty(key).trim();
     if (value == null) throw new IllegalArgumentException(key + " is missing.");
     return parseInt(value);
   }
 
   public int getInt(final String key, final int defaultValue) {
     if (!properties.containsKey(key)) return defaultValue;
-    return parseInt(properties.getProperty(key));
+    return parseInt(properties.getProperty(key).trim());
   }
 
   public String getString(final String key) {
-    final String value = properties.getProperty(key);
-    if (value == null || value.length() == 0) throw new IllegalArgumentException(key + " is missing.");
-    return properties.getProperty(key);
+    final String value = properties.getProperty(key).trim();
+    if (value == null || value.length() == 0)
+      throw new IllegalArgumentException(key + " is missing.");
+    return value;
   }
 
   public String getString(final String key, final String defaultValue) {
-    return properties.getProperty(key, defaultValue);
+    return properties.getProperty(key, defaultValue).trim();
   }
 
   private final Properties properties;

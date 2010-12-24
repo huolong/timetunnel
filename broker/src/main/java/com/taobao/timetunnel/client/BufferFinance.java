@@ -49,7 +49,9 @@ public final class BufferFinance {
           bitSet.set(i);
         }
         while (buffer.hasRemaining()) {
-          if (buffer.getInt() != i) throw new IllegalStateException("Invalid buffer content " + i);
+          final int content = buffer.getInt();
+          if (content != i)
+            throw new IllegalStateException("Invalid buffer content " + content + " is not " + i);
         }
       }
     };

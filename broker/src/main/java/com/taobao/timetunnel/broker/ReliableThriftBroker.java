@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.taobao.timetunnel.Appendable;
+import com.taobao.timetunnel.TooBigMessageException;
 import com.taobao.timetunnel.broker.ReliableServiceClients.ReliableServiceClient;
 import com.taobao.timetunnel.center.Center;
 import com.taobao.timetunnel.message.ByteBufferMessageCompactor;
@@ -48,6 +49,8 @@ public final class ReliableThriftBroker extends ThriftBroker<ByteBuffer> impleme
                               final String group,
                               final int syncPoint,
                               final int maxMessageSize,
+                              final int chunkCapacity,
+                              final int chunkBuffer,
                               final MemoryMonitor monitor,
                               final File home) {
     super(center, group);
@@ -58,9 +61,10 @@ public final class ReliableThriftBroker extends ThriftBroker<ByteBuffer> impleme
     LOGGER.info("clean directory {}.", home);
 
     final MessageFactory<ByteBuffer> messageFactory =
-      new ByteBufferMessageCompactor(monitor, new File(home, "tunnels"), maxMessageSize);
+      new ByteBufferMessageCompactor(monitor, new File(home, "tunnels"), chunkCapacity, chunkBuffer);
     tunnels = new ByteBufferMessageTunnels(this, syncPoint, messageFactory);
-    reliables = new ByteBufferMessageReliables(new File(home, "reliables"), maxMessageSize);
+    reliables =
+      new ByteBufferMessageReliables(new File(home, "reliables"), chunkCapacity, chunkBuffer);
   }
 
   @Override

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import junit.framework.Assert;
+import junit.framework.TestCase;
 
 import org.junit.After;
 import org.junit.Before;
@@ -11,7 +12,7 @@ import org.junit.Test;
 
 import com.taobao.timetunnel2.router.common.ParamsKey;
 
-public class RandomLoadBalancerTest {
+public class RandomLoadBalancerTest extends TestCase{
 	private RouterContext handler;
 	@Before
 	public void setUp() throws Exception {

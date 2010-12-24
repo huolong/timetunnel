@@ -30,8 +30,9 @@ import com.taobao.util.MemoryMonitor;
 public class EfficientThriftBrokerTest extends InjectMocksSupport {
   @Test
   public void point2point() throws Exception {
-    // TODO point2point ()
     TestClient.retry(1);
+    Thread.sleep(1000L); // wait clients initializaion in center.
+
     final ClientFactory factory = TestClient.clientFactory(host, external);
     final BufferFinance finance = TestClient.finance(1, TIMES);
 
@@ -52,7 +53,16 @@ public class EfficientThriftBrokerTest extends InjectMocksSupport {
     final ZookeeperCenter center = new ZookeeperCenter(host + ":8881", 2000, 60);
 
     server =
-      new EfficientThriftBroker(center, host, external, "group", 50, monitor, root, maxMessageSize);
+      new EfficientThriftBroker(center,
+                                host,
+                                external,
+                                "group",
+                                50,
+                                monitor,
+                                root,
+                                maxMessageSize,
+                                chunkCapacity,
+                                chunkBuffer);
     new Thread(new Runnable() {
 
       @Override
@@ -92,28 +102,27 @@ public class EfficientThriftBrokerTest extends InjectMocksSupport {
   public static void tearDownAfterClass() throws Exception {
     try {
       zookeeper.shutdown();
-    } catch (Exception e) {
+    } catch (final Exception e) {
       e.printStackTrace();
     }
   }
 
+  private static final int TIMES = 1000;
   private static final File root = new File("target/etbt");
+  private static final String connectString = "localhost:8881";
+  private static final int sessionTimeout = 2000;
 
   private static ZooKeeperServerForTest zookeeper;
-
-  private static String connectString = "localhost:8881";
-
-  private static int sessionTimeout = 2000;
 
   private final MemoryMonitor monitor = new MemoryMonitor(MemoryMonitor.max() - 10240,
                                                           MemoryMonitor.max() - 1);
   private final int maxMessageSize = 4096;
-
-  private Server server;
-
+  private final int chunkCapacity = 1 << 20;
+  private final int chunkBuffer = 1 << 15;
   private final String host = "localhost";
   private final String category = "chat";
   private final int external = 9999;
 
-  private static final int TIMES = 1000;
+  private Server server;
+
 }

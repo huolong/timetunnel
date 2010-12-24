@@ -5,7 +5,7 @@ export temppath=$1
 cd $temppath
 
 mvn -pl idl clean install -Dmaven.test.skip=true
-mvn -pl client clean package -Dmaven.test.skip=true
+mvn -pl client/java clean package -Dmaven.test.skip=true
 
 cd $temppath/rpm
 sed -i  "s/^Release:.*$/Release: "$4"/" $2.spec

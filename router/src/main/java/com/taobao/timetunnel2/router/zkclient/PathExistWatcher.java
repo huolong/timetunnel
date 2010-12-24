@@ -7,6 +7,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.recipes.lock.ProtocolSupport;
 import org.apache.zookeeper.recipes.lock.ZooKeeperOperation;
@@ -35,10 +36,14 @@ public class PathExistWatcher extends ProtocolSupport {
 		private String eventPath;
 		private EventType eventType;
 		public void process(WatchedEvent event) {
-			log.debug("getChildren event =>" + event);
+			log.debug("exists event =>" + event);
 			eventPath = event.getPath();
 			eventType = event.getType();
-			if (eventType == EventType.NodeCreated ||
+			if (event.getType() == Event.EventType.None) {
+				if (event.getState() == KeeperState.SyncConnected) {
+					semaphore.release();
+				}
+			}else if (eventType == EventType.NodeCreated ||
 				eventType == EventType.NodeDeleted ||
 				eventType == EventType.NodeDataChanged)
 				semaphore.release();
@@ -47,7 +52,11 @@ public class PathExistWatcher extends ProtocolSupport {
 		public Boolean execute() throws KeeperException, InterruptedException {
 			while (!Thread.currentThread().isInterrupted()) {
 				semaphore.acquire();
-				zooKeeper.exists(path, this);
+				if (eventPath==null){	
+					zooKeeper.exists(path, this);
+				}else{
+					zooKeeper.exists(eventPath, this);
+				}
 				if(eventType==EventType.NodeCreated)
 					visitor.onNodeCreated(eventPath);
 				else if(eventType==EventType.NodeDeleted)

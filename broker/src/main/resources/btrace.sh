@@ -35,7 +35,7 @@ if [ "${JAVA_HOME}" != "" ]; then
           TOOLS_JAR="${JAVA_HOME}/lib/tools.jar"
       ;;
    esac
-   ${JAVA_HOME}/bin/java -Dcom.sun.btrace.probeDescPath=. -Dcom.sun.btrace.dumpClasses=false -Dcom.sun.btrace.debug=false -Dcom.sun.btrace.unsafe=false -cp ${BTRACE_HOME}/lib/*:${TOOLS_JAR}:/usr/share/lib/java/dtrace.jar com.sun.btrace.client.Main $*
+   ${JAVA_HOME}/bin/java -Dcom.sun.btrace.probeDescPath=. -Dcom.sun.btrace.dumpClasses=false -Dcom.sun.btrace.debug=false -Dcom.sun.btrace.unsafe=true -cp ${BTRACE_HOME}/lib/*:${TOOLS_JAR}:/usr/share/lib/java/dtrace.jar com.sun.btrace.client.Main $*
 else
    echo "Please set JAVA_HOME before running this script"
    exit 1

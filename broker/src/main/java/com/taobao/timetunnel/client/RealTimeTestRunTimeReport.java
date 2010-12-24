@@ -37,13 +37,15 @@ final class RealTimeTestRunTimeReport implements TestRuntimeReport {
   }
 
   @Override
-  public Counter counterOf(final Failure failure) {
-    if (!failureCounters.exist(failure)) failure.printStackTrace();
-    try {
-      return failureCounters.getOrCreateIfNotExist(failure.reason);
-    } catch (final Exception e) {
-      throw new RuntimeException(e);
+  public Counter counterOf(final Exception e) {
+    String key = null;
+    if (e instanceof Failure) {
+      key = ((Failure) e).reason;
+    }else {
+      key = e.getClass().getSimpleName();
     }
+    if (!failureCounters.exist(key)) e.printStackTrace();
+    return failureCounters.uncheckedGetOrCreateIfNoExist(key);
   }
 
   @Override
@@ -91,8 +93,8 @@ final class RealTimeTestRunTimeReport implements TestRuntimeReport {
       });
     }
 
-    public boolean exist(final Failure failure) {
-      return map.contains(failure.reason);
+    public boolean exist(final String key) {
+      return map.contains(key);
     }
 
     public boolean isNotEmpty() {

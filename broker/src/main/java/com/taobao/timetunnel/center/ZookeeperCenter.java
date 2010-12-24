@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.taobao.timetunnel.InvalidCategoryException;
+import com.taobao.timetunnel.InvalidTokenException;
 import com.taobao.timetunnel.message.Category;
 import com.taobao.timetunnel.session.Attribute;
 import com.taobao.timetunnel.session.Session;
@@ -75,7 +77,7 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
   @Override
   public void onDisconnected() {
     LOGGER.info("Broker disconnected to zookeeper server");
-//    watcher.onLossContactWithCluster();
+    // watcher.onLossContactWithCluster();
   }
 
   @Override
@@ -240,6 +242,11 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
     }
 
     @Override
+    public boolean isInvaildSubscriber(final String key) {
+      return !readers.contains(key);
+    }
+
+    @Override
     public boolean isMessageExpiredAfter(final long created) {
       // TODO category node in zookeeper has timeToLive value.
       return false;
@@ -247,7 +254,7 @@ public class ZookeeperCenter implements Center, ZooKeeperListener {
 
     @Override
     public boolean isMessageUselessReadBy(final Set<String> readers) {
-      return this.readers.equals(readers);
+      return readers.containsAll(this.readers);
     }
 
     @Override

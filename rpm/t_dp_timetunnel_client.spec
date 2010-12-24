@@ -47,7 +47,7 @@ timetunnel2 client rpm package version 0.2.0,support publisher,subscriber,resent
 mkdir -p .%{_prefix}/client/lib
 
 # copy files
-cp $OLDPWD/../client/target/dist/lib/* .%{_prefix}/client/lib
+cp $OLDPWD/../client/java/target/dist/lib/* .%{_prefix}/client/lib
 
 
 # create a crontab of the package

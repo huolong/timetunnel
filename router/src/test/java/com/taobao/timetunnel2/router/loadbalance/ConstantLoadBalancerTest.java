@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import junit.framework.Assert;
+import junit.framework.TestCase;
 
 import org.junit.After;
 import org.junit.Before;
@@ -13,7 +14,7 @@ import org.junit.Test;
 
 import com.taobao.timetunnel2.router.common.ParamsKey;
 
-public class ConstantLoadBalancerTest {
+public class ConstantLoadBalancerTest extends TestCase{
 	private RouterContext handler;	
 
 	@Before
@@ -21,11 +22,6 @@ public class ConstantLoadBalancerTest {
 		handler = RouterContext.getContext();
 		LoadBalancer policy = LoadBalancerFactory.getLoadBalancerPolicy("ConstantLoadBalancer");	
 		handler.setPolicy(ParamsKey.LBPolicy.s_policy, policy);	
-	}
-
-	@After
-	public void tearDown() throws Exception {
-		handler.cleanup();
 	}
 	
 	@Test
@@ -78,6 +74,12 @@ public class ConstantLoadBalancerTest {
 			accumulator.put(key, value.intValue()+1);
 		else
 			accumulator.put(key, 1);
+	}
+	
+	@After
+	public void tearDown() throws Exception {
+		handler.cleanup();
+		handler = null;
 	}
 
 }

@@ -1,11 +1,13 @@
 package com.taobao.timetunnel.reliable;
 
+import static org.hamcrest.Matchers.hasItems;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -30,10 +32,10 @@ public class ReliableTest extends InjectMocksSupport {
   @Before
   public void setUp() throws Exception {
     doReturn("category").when(category).name();
-    File home = new File("./target/rt");
+    final File home = new File("./target/rt");
     DirectoryCleaner.clean(home);
     home.mkdirs();
-    reliable = new ByteBufferMessageReliables(home, 4096).reliable(category);
+    reliable = new ByteBufferMessageReliables(home, (1 << 20), (1 << 10)).reliable(category);
   }
 
   @Test
@@ -51,12 +53,7 @@ public class ReliableTest extends InjectMocksSupport {
 
     reliable.dumpTo(appendable);
 
-    verify(appendable, never()).append(category, session, Bytes.toBuffer(0));
-    verify(appendable, never()).append(category, session, Bytes.toBuffer(1));
-    verify(appendable, never()).append(category, session, Bytes.toBuffer(2));
-    verify(appendable).append(category, session, Bytes.toBuffer(3));
-    verify(appendable).append(category, session, Bytes.toBuffer(4));
-    verify(appendable).append(category, session, Bytes.toBuffer(5));
+    assertThat(result, hasItems(3, 4, 5));
   }
 
   private Reliable<ByteBuffer> reliable;
@@ -64,6 +61,13 @@ public class ReliableTest extends InjectMocksSupport {
   private Session session;
   @Mock
   private Category category;
-  @Mock
-  private Appendable<ByteBuffer> appendable;
+
+  private final Set<Integer> result = new HashSet<Integer>();
+  private final Appendable<ByteBuffer> appendable = new Appendable<ByteBuffer>() {
+
+    @Override
+    public void append(final Category category, final Session session, final ByteBuffer message) {
+      result.add(message.asReadOnlyBuffer().getInt());
+    }
+  };
 }

@@ -5,6 +5,8 @@ import static org.junit.Assert.*;
 import java.util.HashMap;
 import java.util.Map;
 
+import junit.framework.TestCase;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -12,7 +14,7 @@ import org.junit.Test;
 import com.taobao.timetunnel.thrift.router.Constants;
 import com.taobao.timetunnel2.router.exception.ServiceException;
 
-public class RouterContextTest {
+public class RouterContextTest extends TestCase{
 	private RouterContext context; 
 	@Before
 	public void setUp() throws Exception {
@@ -21,6 +23,7 @@ public class RouterContextTest {
 
 	@After
 	public void tearDown() throws Exception {
+		context.cleanup();
 	}
 
 	@Test
@@ -58,7 +61,7 @@ public class RouterContextTest {
 
 	@Test
 	public void testCleanup() {
-		context.cleanup();
+		//context.cleanup();
 	}
 
 }

@@ -7,8 +7,8 @@ import org.apache.log4j.Logger;
 
 import com.taobao.timetunnel2.router.common.ParamsKey;
 import com.taobao.timetunnel2.router.common.RouterConsts;
+import com.taobao.timetunnel2.router.common.Util;
 import com.taobao.timetunnel2.router.exception.ServiceException;
-import com.taobao.timetunnel2.router.loadbalance.RouterContext;
 
 public abstract class ServiceEngine implements Seveice{
 	private static final Logger log = Logger.getLogger(ServiceEngine.class);
@@ -175,6 +175,14 @@ public abstract class ServiceEngine implements Seveice{
 		return instance;
 	}
     
+    public static ServiceEngine getInstance() throws ServiceException{
+    	if (instance==null){
+    		throw new ServiceException(
+					"The Service Engine is Initializing...");
+    	}
+    	return instance;
+    }
+    
 	public static void main(String[] args) {
 		Thread.currentThread().setName("main service engine");
 		//PropertyConfigurator.configure(RouterConsts.LOG_PATH);
@@ -184,7 +192,7 @@ public abstract class ServiceEngine implements Seveice{
 		log.info("initialize....");
 
 		try {
-			Properties prop = RouterContext.getContext().getAppParam();
+			Properties prop = Util.loadConf();//RouterContext.getContext().getAppParam();
 			String name = prop.getProperty(ParamsKey.Service.serverType, "BLOCK");
 			String classname = ParamsKey.Service.serverClass.BLOCK.getClassname();
 			try{

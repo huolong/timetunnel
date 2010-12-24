@@ -27,8 +27,8 @@ import com.taobao.util.Repository.Factory;
  */
 public class ByteBufferMessageReliables implements Disposable, Dumpable<ByteBuffer> {
 
-  public ByteBufferMessageReliables(final File home, int maxMessageSize) {
-    freezers = new ByteBufferFreezers(home, maxMessageSize);
+  public ByteBufferMessageReliables(final File home, final int chunkCapacity, final int chunkBuffer) {
+    freezers = new ByteBufferFreezers(home, chunkCapacity, chunkBuffer);
   }
 
   @Override
@@ -117,7 +117,8 @@ public class ByteBufferMessageReliables implements Disposable, Dumpable<ByteBuff
       while (!queue.isEmpty()) {
         final Message<ByteBuffer> message = queue.poll();
         if (message.isExpired() || message.isUseless()) continue;
-        appendable.append(category, message.publisher(), message.content());
+        ByteBuffer content = message.content();
+        appendable.append(category, message.publisher(), content);
       }
     }
 

@@ -59,20 +59,23 @@ class HealthCheck(object):
                 print "no meta found"
                 return repr(MetaInfo())
             meta_name = self.__bulidname(index)
+            print "meta_name: "+meta_name
             try:
                 f = open(meta_name, "r")
             except:
+                print "cp file has been switched when open"
                 continue
             if os.path.exists(meta_name):
                 break
             else:
+                print "cp file has been switched"
                 continue
         check_info = self.__load_from_file(f)
         print "{COLLECT CHECK INFO END}"
         return check_info
     
     def __bulidname(self, index):
-        return self.dir + os.sep + self.name + str(index)
+        return self.dir + self.name +"_"+ str(index)
     
     def __load_from_file(self, f):
         times = 0;
@@ -141,20 +144,23 @@ class HealthCheck(object):
     
     def __check_log(self):
         print "{COLLECT LOG INFO BEGIN}"
+        print "log file: "+self.log_path
         f = open(self.log_path, "r")
         f.seek(0, 2)
         ret = []
         i = 0
         try:
             while i < 2:
+                time.sleep(10)
                 lines = f.readlines(10000)
+                print "read len from log file: "+str(len(lines))
                 for l in lines:
                     if l.startswith("CHECK_" + self.name) is False:
                         continue
                     else:
                         ret.append(l)
                 if len(ret) == 0:
-                    time.sleep(2)
+                    time.sleep(20)
                     i += 1
                     continue
                 else:
@@ -171,6 +177,7 @@ if __name__ == '__main__':
     topics = conf.get_topic_name().split(",")
     i = 0
     path = log_config.getLogPath()
+    print str(topics)
     for t in topics:
         cp_path = conf.get_cp_path()
         cp_name = conf.get_cp_name().split(",")[i]

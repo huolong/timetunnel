@@ -6,10 +6,13 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import com.taobao.timetunnel.InvalidCategoryException;
+import com.taobao.timetunnel.InvalidSubscriberException;
+import com.taobao.timetunnel.InvalidTokenException;
+import com.taobao.timetunnel.ReliableServiceClientException;
+import com.taobao.timetunnel.TooBigMessageException;
 import com.taobao.timetunnel.center.Center;
 import com.taobao.timetunnel.center.Center.ClusterChangedWatcher;
-import com.taobao.timetunnel.center.InvalidCategoryException;
-import com.taobao.timetunnel.center.InvalidTokenException;
 import com.taobao.timetunnel.message.Category;
 import com.taobao.timetunnel.session.Session;
 import com.taobao.timetunnel.thrift.gen.Failure;
@@ -119,6 +122,7 @@ public abstract class ThriftBroker<T> implements Server {
     if (t instanceof InvalidCategoryException) return 2;
     if (t instanceof TooBigMessageException) return 3;
     if (t instanceof ReliableServiceClientException) return 4;
+    if (t instanceof InvalidSubscriberException) return 5;
     return -1; // unknown
   }
 

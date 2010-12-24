@@ -1,6 +1,5 @@
 package com.taobao.timetunnel.client;
 
-import com.taobao.timetunnel.thrift.gen.Failure;
 
 /**
  * {@link TestRuntimeReport}
@@ -11,7 +10,7 @@ import com.taobao.timetunnel.thrift.gen.Failure;
  */
 public interface TestRuntimeReport {
 
-  Counter counterOf(Failure e);
+  Counter counterOf(Exception e);
 
   Counter counterOfMessage();
 

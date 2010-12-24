@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
+import junit.framework.TestCase;
+
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.AsyncCallback.VoidCallback;
@@ -17,7 +19,7 @@ import org.junit.Test;
 import com.taobao.timetunnel2.router.common.ParamsKey;
 import com.taobao.timetunnel2.router.common.RouterConsts;
 
-public class ZooKeeperExectorTest {
+public class ZooKeeperExectorTest extends TestCase{
 	private ZookeeperService zks;
 	@Before
 	public void setUp() throws Exception {
@@ -35,25 +37,16 @@ public class ZooKeeperExectorTest {
 	
 	@Test
 	public void testAsyncGetData() {
-		DCallback dcb = new DCallback();
-		CountDownLatch count = new CountDownLatch(1);
-		zks.getData("/categories/acookie", dcb, count);
-		try {
-			count.await();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		System.out.println("testGetData [/categories/acookie] result="+new String(dcb.getResult()));
+		/*DCallback dcb = new DCallback();
+		CountDownLatch count = new CountDownLatch(1);*/
+		String data = zks.getData("/categories/acookie", null, null);
+		System.out.println("testGetData [/categories/acookie] result="+data);
 	}
 
 	@Test
 	public void testAsyncGetChildren() {
-		CCallback ccb = new CCallback();
 		try { 
-			CountDownLatch count = new CountDownLatch(1);
-			zks.getChildren("/clients/host2:8080-acookie", ccb, count);
-			count.await();
-			List<String> dirs = ccb.getResult();
+			List<String> dirs = zks.getChildren("/clients/host2:8080-acookie", null, null);
 			if(dirs!=null){
 				for (String d : dirs) {
 					VCallback vcb = new VCallback();
@@ -63,15 +56,12 @@ public class ZooKeeperExectorTest {
 			}
 		} catch (NoNodeException e) {
 			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}		
+		} 		
 	}
 
 	@Test
 	public void testAsyncDelete() {		
-		VCallback vcb = new VCallback();
-		zks.delete("/clients/host1:8080-acookie/646d90b39f1d0774104863882f1f5c81", false, vcb, null);
+		zks.delete("/clients/host1:8080-acookie/646d90b39f1d0774104863882f1f5c81", false, null, null);
 	}
 	
 	class VCallback implements VoidCallback{

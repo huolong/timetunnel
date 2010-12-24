@@ -45,10 +45,12 @@ public final class Race {
       final Callable<T> callable = barried ? barried(task) : task;
       futures.add(executor.submit(named(callable, name + "-" + i)));
     }
-
-    get(futures);
-    shutdown(executor);
-    return futures;
+    try {
+      get(futures);
+      return futures;
+    } finally {
+      shutdown(executor);
+    }
   }
 
   public static final <T> List<Future<T>> run(final Callable<T>... tasks) throws Exception {
@@ -64,9 +66,12 @@ public final class Race {
       futures.add(executor.submit(named(callable, name)));
     }
 
-    get(futures);
-    shutdown(executor);
-    return futures;
+    try {
+      get(futures);
+      return futures;
+    } finally {
+      shutdown(executor);
+    }
   }
 
   private static <T> Callable<T> barried(final Callable<T> task) {

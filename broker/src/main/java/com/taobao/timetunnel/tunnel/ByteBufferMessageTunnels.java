@@ -14,6 +14,7 @@ import com.taobao.timetunnel.Appendable;
 import com.taobao.timetunnel.Disposable;
 import com.taobao.timetunnel.DisposableRepository;
 import com.taobao.timetunnel.Dumpable;
+import com.taobao.timetunnel.InvalidSubscriberException;
 import com.taobao.timetunnel.message.Category;
 import com.taobao.timetunnel.message.Message;
 import com.taobao.timetunnel.message.MessageFactory;
@@ -158,11 +159,7 @@ public class ByteBufferMessageTunnels implements Disposable, Dumpable<ByteBuffer
     }
 
     private WatcherGroup watchGroup(final Session session) {
-      try {
-        return groups.getOrCreateIfNotExist(session.stringValueOf(Attribute.subscriber));
-      } catch (final Exception e) {
-        throw new RuntimeException(e);
-      }
+      return groups.uncheckedGetOrCreateIfNoExist(session.stringValueOf(Attribute.subscriber));
     }
 
     private final Groups groups = new Groups();
@@ -194,6 +191,7 @@ public class ByteBufferMessageTunnels implements Disposable, Dumpable<ByteBuffer
     private final class WatcherGroup implements Group<ByteBuffer> {
 
       public WatcherGroup(final String key) {
+        if (category.isInvaildSubscriber(key)) throw new InvalidSubscriberException(key);
         this.key = key;
         reflux = new ConcurrentLinkedQueue<Message<ByteBuffer>>();
         coordinator = Coordinators.coordinator(syncPoint);
