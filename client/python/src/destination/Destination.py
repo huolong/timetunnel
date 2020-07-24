@@ -71,7 +71,7 @@ class Destination(object):
             prop[constants.TIMEOUT] = str(queryInfo.timeout)
             prop[constants.TYPE] = "PUB"
             urls = self.client.getBroker(queryInfo.user, queryInfo.pwd, queryInfo.topic, queryInfo.only, prop)
-#            urls = "{\"sessionId\":\"8045f5cb0521c82598584f3151b1a1d5\",\"brokerserver\":[\"{\\\"master\\\":\\\"localhost:8888\\\",\\\"slave\\\":[]}\"]}"
+#            urls = "{\"sessionId\":\"8045f5cb0521c82598584f3151b1a1d5\",\"brokerserver\":[\"{\\\"main\\\":\\\"localhost:8888\\\",\\\"subordinate\\\":[]}\"]}"
             logger.debug("Urls from router: " + urls)
             return UrlDecoder(urls)
         except TException, e:
